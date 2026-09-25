@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}ALHAM HRM{% endblock %}</title>
+<link rel="icon" href="data:,">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sidebar-bg: #0a1e4d;
+    --sidebar-active: #063fb0;
+    --accent: #063fb0;
+    --accent-secondary: #dbe803;
+    --page-bg: #f4f6f9;
+    --text-dark: #111827;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; background: var(--page-bg); color: var(--text-dark); }
+
+    .sidebar {
+    width: 250px; height: 100vh; background: var(--sidebar-bg);
+    position: fixed; top: 0; left: 0; padding: 1.5rem 1rem;
+    display: flex; flex-direction: column; overflow-y: auto;
+  }
+  .sidebar .brand {
+    color: #fff; font-weight: 800; font-size: 1.2rem; margin-bottom: 2rem;
+    display: flex; align-items: center; gap: .5rem; letter-spacing: .3px;
+  }
+  .sidebar .brand span { color: var(--accent-secondary); }
+  .sidebar .nav-section-label {
+    color: rgba(255,255,255,0.35); font-size: .7rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .08em; margin: 1rem 0 .4rem .8rem;
+  }
+  .sidebar a {
+    display: flex; align-items: center; gap: .65rem; color: #b8c4e0; text-decoration: none;
+    padding: .55rem .8rem; border-radius: 8px; margin-bottom: .15rem; font-size: .89rem; font-weight: 500;
+    transition: background .12s ease, color .12s ease;
+  }
+  .sidebar a i { font-size: 1rem; width: 1.1rem; text-align: center; }
+  .sidebar a:hover { background: rgba(255,255,255,0.08); color: #fff; }
+  .sidebar a.active { background: var(--accent); color: #fff; box-shadow: 0 2px 8px rgba(6,63,176,0.4); }
+  .sidebar .sidebar-footer { margin-top: auto; padding-top: 1rem; }
+
+  .main-content { margin-left: 250px; padding: 1.75rem 2rem; }
+  .topbar {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid #e5e7eb;
+  }
+  .topbar h4 { margin: 0; font-weight: 800; color: var(--text-dark); }
+  .user-chip {
+    display: flex; align-items: center; gap: .5rem; font-size: .85rem; color: #6b7280;
+  }
+  .user-chip .avatar {
+    width: 28px; height: 28px; border-radius: 50%; background: var(--accent);
+    color: #fff; display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: .8rem;
+  }
+
+  .card { border: none; border-radius: 14px; box-shadow: 0 1px 3px rgba(16,24,40,0.06), 0 1px 2px rgba(16,24,40,0.04); }
+  .stat-card { padding: 1.25rem; border-left: 4px solid var(--accent-secondary); position: relative; }
+  .stat-card .icon-badge {
+    position: absolute; top: 1.1rem; right: 1.1rem; width: 36px; height: 36px; border-radius: 10px;
+    background: #eef2ff; color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 1.05rem;
+  }
+  .stat-card .label { color: #6b7280; font-size: .8rem; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+  .stat-card .value { font-size: 1.65rem; font-weight: 800; color: var(--text-dark); margin-top: .15rem; }
+
+  .badge-role { background: #e6ecfa; color: var(--accent); font-weight: 600; }
+  table th { font-size: .75rem; text-transform: uppercase; color: #6b7280; font-weight: 700; border-top: none; letter-spacing: .03em; }
+  table td { vertical-align: middle; }
+
+  .btn-primary { background: var(--accent); border-color: var(--accent); font-weight: 600; }
+  .btn-primary:hover { background: #052f85; border-color: #052f85; }
+  .btn-outline-primary { color: var(--accent); border-color: var(--accent); font-weight: 600; }
+  .btn-outline-primary:hover { background: var(--accent); border-color: var(--accent); }
+  a { color: var(--accent); }
+  .form-control:focus, .form-select:focus { border-color: var(--accent); box-shadow: 0 0 0 0.2rem rgba(6,63,176,0.15); }
+
+  .empty-state { text-align: center; padding: 2.5rem 1rem; color: #9ca3af; }
+  .empty-state i { font-size: 2rem; display: block; margin-bottom: .5rem; opacity: .5; }
+</style>
+{% block extra_head %}{% endblock %}
+</head>
+<body>
+{% if user.is_authenticated %}
+<nav class="sidebar">
+  <a href="{% url 'dashboard_home' %}" class="brand"><i class="bi bi-buildings-fill"></i> ALHAM <span>HRM</span></a>
+
+  {% if user.is_staff or user.is_superuser %}
+  <a href="{% url 'dashboard_home' %}" class="{% if request.resolver_match.url_name == 'dashboard_home' %}active{% endif %}"><i class="bi bi-grid-1x2-fill"></i> Dashboard</a>
+
+  <div class="nav-section-label">Workforce</div>
+  <a href="{% url 'employee_list' %}" class="{% if 'employee' in request.resolver_match.url_name %}active{% endif %}"><i class="bi bi-people-fill"></i> Employees</a>
+  <a href="{% url 'leave_list' %}" class="{% if 'leave' in request.resolver_match.url_name %}active{% endif %}"><i class="bi bi-calendar-check-fill"></i> Attendance</a>
+  <a href="{% url 'attendance_review' %}" class="{% if request.resolver_match.url_name == 'attendance_review' %}active{% endif %}"><i class="bi bi-flag-fill"></i> Attendance Review</a>
+
+  <div class="nav-section-label">Admissions</div>
+  <a href="{% url 'enrollment_list' %}" class="{% if request.resolver_match.url_name == 'enrollment_list' %}active{% endif %}"><i class="bi bi-mortarboard-fill"></i> Enrollments</a>
+  <a href="{% url 'incentive_rule_list' %}" class="{% if 'incentive' in request.resolver_match.url_name %}active{% endif %}"><i class="bi bi-percent"></i> Incentive Rules</a>
+
+  <div class="nav-section-label">Payroll</div>
+  <a href="{% url 'payroll_generate' %}" class="{% if 'payroll' in request.resolver_match.url_name %}active{% endif %}"><i class="bi bi-cash-coin"></i> Payroll</a>
+
+  <div class="nav-section-label">Bulk Import</div>
+  <a href="{% url 'enrollment_import' %}" class="{% if request.resolver_match.url_name == 'enrollment_import' %}active{% endif %}"><i class="bi bi-file-earmark-arrow-up-fill"></i> Import Enrollments</a>
+  <a href="{% url 'attendance_import' %}" class="{% if request.resolver_match.url_name == 'attendance_import' %}active{% endif %}"><i class="bi bi-file-earmark-arrow-up-fill"></i> Import Attendance</a>
+
+  <div class="sidebar-footer">
+    <a href="/admin/" target="_blank"><i class="bi bi-gear-fill"></i> Django Admin</a>
+    <hr style="border-color:rgba(255,255,255,0.15);">
+    <a href="{% url 'logout' %}"><i class="bi bi-box-arrow-right"></i> Logout</a>
+  </div>
+  {% else %}
+  <a href="{% url 'self_attendance' %}" class="active"><i class="bi bi-clock-fill"></i> My Attendance</a>
+  <div class="sidebar-footer">
+        <form method="post" action="{% url 'logout' %}" class="m-0">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-link p-0 text-decoration-none" style="color:#b8c4e0; display:flex; align-items:center; gap:.65rem; font-size:.89rem; font-weight:500; width:100%; text-align:left;">
+        <i class="bi bi-box-arrow-right"></i> Logout
+      </button>
+    </form>
+  </div>
+  {% endif %}
+</nav>
+<div class="main-content">
+  <div class="topbar">
+    <h4>{% block page_title %}Dashboard{% endblock %}</h4>
+    <div class="user-chip">
+      <div class="avatar">{{ user.username|slice:":1"|upper }}</div>
+      {{ user.username }}
+    </div>
+  </div>
+  {% if messages %}
+    {% for message in messages %}
+      <div class="alert {% if message.tags == 'error' %}alert-danger{% elif message.tags == 'warning' %}alert-warning{% else %}alert-success{% endif %} py-2">{{ message }}</div>
+    {% endfor %}
+  {% endif %}
+  {% block content %}{% endblock %}
+</div>
+{% else %}
+  {% block guest_content %}{% endblock %}
+{% endif %}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% block extra_scripts %}{% endblock %}
+</body>
+</html>

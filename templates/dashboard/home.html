@@ -1,0 +1,236 @@
+{% extends 'core/base.html' %}
+{% block page_title %}Dashboard{% endblock %}
+{% block content %}
+
+<form method="get" class="d-flex justify-content-end mb-3">
+  <select name="period" class="form-select form-select-sm" style="max-width: 220px;" onchange="const [m,y]=this.value.split('-'); window.location.href='?month='+m+'&year='+y;">
+    {% for opt in month_options %}
+      <option value="{{ opt.month }}-{{ opt.year }}" {% if opt.month == selected_month and opt.year == selected_year %}selected{% endif %}>{{ opt.label }}</option>
+    {% endfor %}
+  </select>
+</form>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card p-3 text-center" style="background: linear-gradient(135deg, #0a1e4d 0%, #063fb0 100%); color: #fff;">
+      <div class="small fw-semibold mb-2" style="opacity:.85; letter-spacing:.05em;"><i class="bi bi-award-fill" style="color:#dbe803;"></i> COUNSELOR OF THE MONTH</div>
+      {% if counselor_of_month %}
+        {% if counselor_of_month.photo %}
+          <img src="{{ counselor_of_month.photo.url }}" class="rounded-circle mx-auto mb-2" style="width:72px;height:72px;object-fit:cover;border:3px solid #dbe803;">
+        {% else %}
+          <div class="rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center" style="width:72px;height:72px;background:#dbe803;color:#0a1e4d;font-size:1.6rem;font-weight:800;">
+            {{ counselor_of_month.name|slice:":1" }}
+          </div>
+        {% endif %}
+        <h5 class="fw-bold mb-0">{{ counselor_of_month.name }}</h5>
+        <p class="small mb-3" style="opacity:.85;">{{ counselor_of_month_count }} enrollment{{ counselor_of_month_count|pluralize }} — {{ selected_period_label }}</p>
+        <a href="{% url 'counselor_of_month_certificate' counselor_of_month.pk selected_year selected_month %}" class="btn btn-sm" style="background:#dbe803; color:#0a1e4d; font-weight:700;">
+          <i class="bi bi-download"></i> Download Certificate
+        </a>
+      {% else %}
+        <div class="py-4" style="opacity:.7;">No enrollments recorded for {{ selected_period_label }} yet.</div>
+      {% endif %}
+    </div>
+  </div>
+  <div class="col-md-8">
+    <div class="row g-3 h-100">
+      <div class="col-md-6">
+        <div class="card stat-card">
+          <div class="icon-badge"><i class="bi bi-people-fill"></i></div>
+          <div class="label">Active Employees</div>
+          <div class="value">{{ total_employees }}</div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card stat-card">
+          <div class="icon-badge"><i class="bi bi-mortarboard-fill"></i></div>
+          <div class="label">Enrollments — {{ selected_period_label }}</div>
+          <div class="value">{{ this_month_enrollments }}</div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card stat-card">
+          <div class="icon-badge"><i class="bi bi-percent"></i></div>
+          <div class="label">Incentives — {{ selected_period_label }}</div>
+          <div class="value">PKR {{ this_month_incentives }}</div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card stat-card">
+          <div class="icon-badge"><i class="bi bi-cash-coin"></i></div>
+          <div class="label">Payroll Total — {{ selected_period_label }}</div>
+          <div class="value">PKR {{ this_month_payroll_total }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-8">
+    <div class="card p-3">
+      <h6 class="fw-semibold mb-3">Incentives Paid — Last 6 Months</h6>
+      {% if has_incentive_trend_data %}<canvas id="incentiveTrendChart" height="90"></canvas>
+      {% else %}<div class="empty-state"><i class="bi bi-bar-chart"></i>No incentives recorded in this period yet.</div>{% endif %}
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card p-3">
+      <h6 class="fw-semibold mb-3">Staff by Role</h6>
+      {% if has_role_data %}<canvas id="roleChart" height="200"></canvas>
+      {% else %}<div class="empty-state"><i class="bi bi-pie-chart"></i>No active employees yet.</div>{% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="card p-3">
+      <h6 class="fw-semibold mb-3">Top Counselors This Year (by Incentives)</h6>
+      {% if has_counselor_data %}<canvas id="counselorChart" height="180"></canvas>
+      {% else %}<div class="empty-state"><i class="bi bi-trophy"></i>No enrollments recorded this year yet.</div>{% endif %}
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card p-3">
+      <h6 class="fw-semibold mb-2">Attendance Snapshot — {{ selected_period_label }}</h6>
+      <p class="mb-1">Total leaves taken: <strong>{{ leaves_this_month }}</strong></p>
+      <p class="mb-1 text-danger">Leaves resulting in deduction: <strong>{{ deducted_leaves_this_month }}</strong></p>
+      <p class="text-muted small mt-3 mb-0">Every employee gets 2 free leaves per month. Anything beyond that is automatically deducted from their payroll.</p>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mt-1">
+  <div class="col-12">
+    <div class="card p-3">
+      <h6 class="fw-semibold mb-3">Attendance Trend — Last 6 Months (All Employees)</h6>
+      {% if has_attendance_trend_data %}<canvas id="attendanceTrendChart" height="80"></canvas>
+      {% else %}<div class="empty-state"><i class="bi bi-graph-up"></i>No attendance data for this range yet. Try importing a sheet or picking a different month.</div>{% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mt-1">
+  <div class="col-12">
+    <div class="card p-3">
+      <h6 class="fw-semibold mb-3">Attendance by Employee — {{ selected_period_label }}</h6>
+      {% if has_attendance_data %}<canvas id="attendanceChart" height="90"></canvas>
+      {% else %}<div class="empty-state"><i class="bi bi-calendar-x"></i>No attendance recorded for {{ selected_period_label }}.</div>{% endif %}
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script id="incentive-months-data" type="application/json">{{ incentive_months_json|safe }}</script>
+<script id="incentive-totals-data" type="application/json">{{ incentive_totals_json|safe }}</script>
+<script id="role-labels-data" type="application/json">{{ role_labels_json|safe }}</script>
+<script id="role-counts-data" type="application/json">{{ role_counts_json|safe }}</script>
+<script id="counselor-labels-data" type="application/json">{{ counselor_labels_json|safe }}</script>
+<script id="counselor-totals-data" type="application/json">{{ counselor_totals_json|safe }}</script>
+<script id="attendance-labels-data" type="application/json">{{ attendance_labels_json|safe }}</script>
+<script id="attendance-present-data" type="application/json">{{ attendance_present_json|safe }}</script>
+<script id="attendance-leave-data" type="application/json">{{ attendance_leave_json|safe }}</script>
+<script id="attendance-absent-data" type="application/json">{{ attendance_absent_json|safe }}</script>
+<script id="attendance-trend-months-data" type="application/json">{{ attendance_trend_months_json|safe }}</script>
+<script id="attendance-trend-present-data" type="application/json">{{ attendance_trend_present_json|safe }}</script>
+<script id="attendance-trend-leave-data" type="application/json">{{ attendance_trend_leave_json|safe }}</script>
+<script id="attendance-trend-absent-data" type="application/json">{{ attendance_trend_absent_json|safe }}</script>
+<script>
+const incentiveMonths = JSON.parse(document.getElementById('incentive-months-data').textContent);
+const incentiveTotals = JSON.parse(document.getElementById('incentive-totals-data').textContent);
+const roleLabels = JSON.parse(document.getElementById('role-labels-data').textContent);
+const roleCounts = JSON.parse(document.getElementById('role-counts-data').textContent);
+const counselorLabels = JSON.parse(document.getElementById('counselor-labels-data').textContent);
+const counselorTotals = JSON.parse(document.getElementById('counselor-totals-data').textContent);
+const attendanceLabels = JSON.parse(document.getElementById('attendance-labels-data').textContent);
+const attendancePresent = JSON.parse(document.getElementById('attendance-present-data').textContent);
+const attendanceLeave = JSON.parse(document.getElementById('attendance-leave-data').textContent);
+const attendanceAbsent = JSON.parse(document.getElementById('attendance-absent-data').textContent);
+const attendanceTrendMonths = JSON.parse(document.getElementById('attendance-trend-months-data').textContent);
+const attendanceTrendPresent = JSON.parse(document.getElementById('attendance-trend-present-data').textContent);
+const attendanceTrendLeave = JSON.parse(document.getElementById('attendance-trend-leave-data').textContent);
+const attendanceTrendAbsent = JSON.parse(document.getElementById('attendance-trend-absent-data').textContent);
+
+if (document.getElementById('incentiveTrendChart')) {
+  new Chart(document.getElementById('incentiveTrendChart'), {
+    type: 'bar',
+    data: {
+      labels: incentiveMonths,
+      datasets: [{
+        label: 'Incentives (PKR)',
+        data: incentiveTotals,
+        backgroundColor: '#063fb0',
+        borderRadius: 6,
+      }]
+    },
+    options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+  });
+}
+
+if (document.getElementById('roleChart')) {
+  new Chart(document.getElementById('roleChart'), {
+    type: 'doughnut',
+    data: {
+      labels: roleLabels,
+      datasets: [{
+        data: roleCounts,
+        backgroundColor: ['#063fb0', '#dbe803', '#f59e0b', '#ef4444'],
+      }]
+    },
+    options: { plugins: { legend: { position: 'bottom' } } }
+  });
+}
+
+if (document.getElementById('counselorChart')) {
+  new Chart(document.getElementById('counselorChart'), {
+    type: 'bar',
+    data: {
+      labels: counselorLabels,
+      datasets: [{
+        label: 'Incentives (PKR)',
+        data: counselorTotals,
+        backgroundColor: '#dbe803',
+        borderRadius: 6,
+      }]
+    },
+    options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } }
+  });
+}
+
+if (document.getElementById('attendanceTrendChart')) {
+  new Chart(document.getElementById('attendanceTrendChart'), {
+    type: 'line',
+    data: {
+      labels: attendanceTrendMonths,
+      datasets: [
+        { label: 'Present', data: attendanceTrendPresent, borderColor: '#063fb0', backgroundColor: 'rgba(6,63,176,0.1)', fill: true, tension: 0.3 },
+        { label: 'Leave', data: attendanceTrendLeave, borderColor: '#dbe803', backgroundColor: 'rgba(219,232,3,0.1)', fill: true, tension: 0.3 },
+        { label: 'Absent', data: attendanceTrendAbsent, borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.1)', fill: true, tension: 0.3 },
+      ]
+    },
+    options: { plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true } } }
+  });
+}
+
+if (document.getElementById('attendanceChart')) {
+  new Chart(document.getElementById('attendanceChart'), {
+    type: 'bar',
+    data: {
+      labels: attendanceLabels,
+      datasets: [
+        { label: 'Present', data: attendancePresent, backgroundColor: '#063fb0' },
+        { label: 'Leave', data: attendanceLeave, backgroundColor: '#dbe803' },
+        { label: 'Absent', data: attendanceAbsent, backgroundColor: '#ef4444' },
+      ]
+    },
+    options: {
+      plugins: { legend: { position: 'bottom' } },
+      scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }
+    }
+  });
+}
+</script>
+{% endblock %}

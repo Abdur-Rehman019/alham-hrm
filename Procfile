@@ -1,0 +1,1 @@
+web: python manage.py migrate && python manage.py collectstatic --noinput && gunicorn alham_hrm.wsgi

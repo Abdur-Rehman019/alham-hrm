@@ -1,0 +1,85 @@
+{% extends 'core/base.html' %}
+{% block page_title %}{{ employee.name }}{% endblock %}
+{% block content %}
+
+<div class="row g-3 mb-3">
+  <div class="col-md-4">
+    <div class="card p-3">
+      <div class="d-flex align-items-center gap-3 mb-3">
+        {% if employee.photo %}
+          <img src="{{ employee.photo.url }}" class="rounded-circle" style="width:64px;height:64px;object-fit:cover;">
+        {% else %}
+          <div class="rounded-circle d-flex align-items-center justify-content-center" style="width:64px;height:64px;background:#eef2ff;color:#063fb0;font-size:1.4rem;font-weight:700;">
+            {{ employee.name|slice:":1" }}
+          </div>
+        {% endif %}
+        <div>
+          <h6 class="fw-bold mb-0">{{ employee.name }}</h6>
+          <span class="text-muted small">{{ employee.employee_id }}</span>
+        </div>
+      </div>
+      <p class="mb-1 small"><strong>Role:</strong> {{ employee.get_role_display }}</p>
+      <p class="mb-1 small"><strong>Monthly Salary:</strong> PKR {{ employee.monthly_salary }}</p>
+      <p class="mb-1 small"><strong>CNIC:</strong> {{ employee.cnic|default:"—" }}</p>
+      <p class="mb-1 small"><strong>Phone:</strong> {{ employee.phone|default:"—" }}</p>
+      <p class="mb-1 small"><strong>Email:</strong> {{ employee.email|default:"—" }}</p>
+      <p class="mb-1 small"><strong>Joined:</strong> {{ employee.joined_on }}</p>
+      <p class="mb-3 small">
+        <strong>Status:</strong>
+        {% if employee.is_active %}<span class="badge bg-success">Active</span>{% else %}<span class="badge bg-secondary">Inactive</span>{% endif %}
+      </p>
+      <a href="{% url 'employee_edit' employee.pk %}" class="btn btn-sm btn-outline-primary mb-2 w-100">Edit Details</a>
+      {% if employee.is_active %}
+        <a href="{% url 'employee_terminate' employee.pk %}" class="btn btn-sm btn-outline-danger mb-2 w-100">Terminate Employee</a>
+      {% endif %}
+
+      {% if employee.user %}
+        <div class="alert alert-success py-2 small mb-2">Login active: <strong>{{ employee.user.username }}</strong></div>
+        <a href="{% url 'employee_remove_login' employee.pk %}" class="btn btn-sm btn-outline-danger w-100" onclick="return confirm('Remove login access for {{ employee.name }}?');">Remove Login Access</a>
+      {% else %}
+        <a href="{% url 'employee_create_login' employee.pk %}" class="btn btn-sm btn-outline-secondary w-100"><i class="bi bi-key-fill"></i> Create Login (Self Check-in)</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card stat-card">
+      <div class="label">Leaves This Month</div>
+      <div class="value">{{ employee.current_month_leaves }} / 2 free</div>
+    </div>
+    <div class="card stat-card mt-3">
+      <div class="label">Total Incentives Earned</div>
+      <div class="value">PKR {{ employee.total_incentives }}</div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card p-3" style="height:100%;">
+      <h6 class="fw-semibold mb-3">Net Pay Trend</h6>
+      {% if has_payroll_data %}<canvas id="payTrendChart" height="140"></canvas>
+      {% else %}<div class="empty-state"><i class="bi bi-graph-up"></i>No payroll generated for this employee yet.</div>{% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-md-6">
+    <div class="card p-3">
+      <h6 class="fw-semibold mb-3">Enrollments — Last 6 Months</h6>
+      {% if has_enrollment_trend_data %}<canvas id="enrollmentTrendChart" height="110"></canvas>
+      {% else %}<div class="empty-state"><i class="bi bi-mortarboard"></i>No enrollments in the last 6 months.</div>{% endif %}
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card p-3">
+      <h6 class="fw-semibold mb-3">Attendance — Last 6 Months</h6>
+      {% if has_attendance_trend_data %}<canvas id="empAttendanceTrendChart" height="110"></canvas>
+      {% else %}<div class="empty-state"><i class="bi bi-calendar-x"></i>No attendance recorded in the last 6 months.</div>{% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="card p-3">
+      <h6 class="fw-semibold mb-3">Recent

@@ -1,0 +1,45 @@
+{% extends 'core/base.html' %}
+{% block page_title %}Incentive Rules{% endblock %}
+{% block content %}
+<div class="row g-3">
+  <div class="col-md-5">
+    <div class="card p-3">
+      <h6 class="fw-semibold mb-3">{% if editing %}Edit Rule — {{ editing.destination_country }}{% else %}Add Rule{% endif %}</h6>
+      <form method="post">
+        {% csrf_token %}
+        {% if editing %}<input type="hidden" name="rule_id" value="{{ editing.pk }}">{% endif %}
+        {% for field in form %}
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">{{ field.label }}</label>
+            {{ field }}
+            {% if field.errors %}<div class="text-danger small mt-1">{{ field.errors|striptags }}</div>{% endif %}
+          </div>
+        {% endfor %}
+        <button type="submit" class="btn btn-primary">{% if editing %}Update Rule{% else %}Save Rule{% endif %}</button>
+        {% if editing %}<a href="{% url 'incentive_rule_list' %}" class="btn btn-outline-secondary">Cancel</a>{% endif %}
+      </form>
+    </div>
+  </div>
+  <div class="col-md-7">
+    <div class="card">
+      <table class="table mb-0">
+        <thead><tr><th class="ps-3">Destination</th><th>Incentive Amount</th><th class="pe-3"></th></tr></thead>
+        <tbody>
+          {% for rule in rules %}
+          <tr>
+            <td class="ps-3">{{ rule.destination_country }}</td>
+            <td>PKR {{ rule.amount }}</td>
+            <td class="pe-3">
+              <a href="?edit={{ rule.pk }}" class="small">Edit</a>
+              | <a href="{% url 'incentive_rule_delete' rule.pk %}" class="small text-danger" onclick="return confirm('Remove the rule for {{ rule.destination_country }}?');">Delete</a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="3" class="text-center text-muted py-4">No incentive rules set yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

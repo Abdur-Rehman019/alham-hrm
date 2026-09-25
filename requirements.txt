@@ -1,0 +1,10 @@
+Django>=6.0,<7.0
+openpyxl>=3.1
+python-decouple>=3.8
+Pillow>=10.0
+reportlab>=4.0
+django-axes>=6.0
+gunicorn>=21.0
+whitenoise>=6.0
+dj-database-url>=2.0
+psycopg2-binary>=2.9

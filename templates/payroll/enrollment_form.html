@@ -1,0 +1,22 @@
+{% extends 'core/base.html' %}
+{% block page_title %}Add Enrollment{% endblock %}
+{% block content %}
+<div class="card p-4" style="max-width: 560px;">
+<form method="post">
+  {% csrf_token %}
+  {% for field in form %}
+    <div class="mb-3">
+      <label class="form-label small fw-semibold">{{ field.label }}</label>
+      {{ field }}
+      {% if field.errors %}<div class="text-danger small mt-1">{{ field.errors|striptags }}</div>{% endif %}
+    </div>
+  {% endfor %}
+  <datalist id="country-list">
+    {% for c in countries %}<option value="{{ c }}">{% endfor %}
+  </datalist>
+  <div class="alert alert-info small">The incentive amount is assigned automatically based on the destination's incentive rule.</div>
+  <button type="submit" class="btn btn-primary">Save</button>
+  <a href="{% url 'enrollment_list' %}" class="btn btn-outline-secondary">Cancel</a>
+</form>
+</div>
+{% endblock %}

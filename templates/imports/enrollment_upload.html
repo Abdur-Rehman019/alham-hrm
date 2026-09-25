@@ -1,0 +1,12 @@
+{% extends 'core/base.html' %}
+{% block page_title %}Import Enrollments{% endblock %}
+{% block content %}
+<div class="card p-4" style="max-width: 560px;">
+  <p class="text-muted small">Upload the monthly students workbook, one sheet per counselor with Name, Enrollment Date, and Country columns. You'll get a preview to confirm counselor assignment before anything is saved.</p>
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="mb-3">{{ form.file }}</div>
+    <button type="submit" class="btn btn-primary">Upload &amp; Preview</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,71 @@
+{% extends 'core/base.html' %}
+{% block page_title %}My Attendance{% endblock %}
+{% block content %}
+
+{% if employee %}
+<div class="row g-3">
+  <div class="col-md-5">
+    <div class="card p-4 text-center">
+      {% if employee.photo %}
+        <img src="{{ employee.photo.url }}" class="rounded-circle mx-auto mb-3" style="width:90px;height:90px;object-fit:cover;">
+      {% else %}
+        <div class="rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width:90px;height:90px;background:#eef2ff;color:#063fb0;font-size:2rem;font-weight:700;">
+          {{ employee.name|slice:":1" }}
+        </div>
+      {% endif %}
+      <h5 class="fw-bold mb-0">{{ employee.name }}</h5>
+      <p class="text-muted small mb-4">{{ employee.employee_id }} &middot; {{ employee.get_role_display }}</p>
+
+      {% if today_record %}
+        <div class="alert alert-success py-2 mb-0">
+          {% if today_record.status == 'leave' %}
+            You're marked on leave today.
+          {% else %}
+            Checked in today at <strong>{{ today_record.check_in_time|time:"g:i A" }}</strong>.
+          {% endif %}
+        </div>
+      {% else %}
+        <form method="post" class="d-grid gap-2">
+          {% csrf_token %}
+          <button type="submit" name="action" value="check_in" class="btn btn-primary btn-lg">
+            <i class="bi bi-clock-fill"></i> Check In Now
+          </button>
+          <button type="submit" name="action" value="mark_leave" class="btn btn-outline-secondary" onclick="return confirm('Mark today as a leave day?');">
+            Mark Today as Leave
+          </button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="col-md-7">
+    <div class="card p-3">
+      <h6 class="fw-semibold mb-3">Your Recent Attendance</h6>
+      <table class="table table-sm mb-0">
+        <thead><tr><th>Date</th><th>Status</th><th>Check-in</th></tr></thead>
+        <tbody>
+          {% for r in recent_history %}
+          <tr>
+            <td>{{ r.date }}</td>
+            <td>
+              {% if r.status == 'present' %}<span class="badge bg-success">Present</span>
+              {% elif r.status == 'leave' %}<span class="badge" style="background:#dbe803;color:#111827;">Leave</span>
+              {% elif r.status == 'absent' %}<span class="badge bg-danger">Absent</span>
+              {% elif r.status == 'holiday' %}<span class="badge bg-secondary">Holiday</span>
+              {% else %}<span class="badge bg-warning text-dark">Needs Review</span>{% endif %}
+            </td>
+            <td>{% if r.check_in_time %}{{ r.check_in_time|time:"g:i A" }}{% else %}—{% endif %}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="3" class="text-center text-muted py-3">No attendance history yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="alert alert-danger">Your account isn't linked to an employee record yet. Please contact your admin.</div>
+{% endif %}
+
+{% endblock %}

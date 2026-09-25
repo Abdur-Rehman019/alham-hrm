@@ -1,0 +1,12 @@
+{% extends 'core/base.html' %}
+{% block page_title %}Import Attendance{% endblock %}
+{% block content %}
+<div class="card p-4" style="max-width: 560px;">
+  <p class="text-muted small">Upload the monthly attendance sheet (dates down the rows, employee names across the columns). Times get recorded as check-ins, "leave" cells create leave entries feeding your existing payroll deduction rule, and anything unclear gets flagged for you to review afterward rather than guessed.</p>
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="mb-3">{{ form.file }}</div>
+    <button type="submit" class="btn btn-primary">Upload &amp; Import</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends 'core/base.html' %}
+{% block page_title %}Employees{% endblock %}
+{% block content %}
+
+<form method="get" class="row g-2 mb-3">
+  <div class="col-auto">
+    <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Search by name">
+  </div>
+  <div class="col-auto">
+    <select name="status" class="form-select">
+      <option value="active" {% if status == 'active' %}selected{% endif %}>Active</option>
+      <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Inactive</option>
+      <option value="all" {% if status == 'all' %}selected{% endif %}>All</option>
+    </select>
+  </div>
+  <div class="col-auto">
+    <button type="submit" class="btn btn-outline-secondary">Filter</button>
+  </div>
+  <div class="col-auto ms-auto">
+    <a href="{% url 'employee_add' %}" class="btn btn-primary">+ Add Employee</a>
+  </div>
+</form>
+
+<div class="card">
+<table class="table table-hover mb-0">
+  <thead><tr><th class="ps-3">ID</th><th>Name</th><th>Role</th><th>Salary</th><th>Joined</th><th>Status</th><th>Login</th><th class="pe-3"></th></tr></thead>
+  <tbody>
+    {% for emp in employees %}
+    <tr>
+      <td class="ps-3">{{ emp.employee_id }}</td>
+      <td><a href="{% url 'employee_detail' emp.pk %}" class="fw-semibold text-decoration-none">{{ emp.name }}</a></td>
+      <td><span class="badge badge-role">{{ emp.get_role_display }}</span></td>
+      <td>PKR {{ emp.monthly_salary }}</td>
+      <td>{{ emp.joined_on }}</td>
+      <td>
+        {% if emp.is_active %}<span class="badge bg-success">Active</span>
+        {% else %}<span class="badge bg-secondary">Inactive</span>{% endif %}
+      </td>
+      <td>
+        {% if emp.user %}<span class="badge" style="background:#e6ecfa;color:#063fb0;">Yes</span>
+        {% else %}<a href="{% url 'employee_create_login' emp.pk %}" class="small">Create</a>{% endif %}
+      </td>
+      <td class="pe-3">
+        <a href="{% url 'employee_edit' emp.pk %}" class="small">Edit</a>
+        {% if emp.is_active %} | <a href="{% url 'employee_deactivate' emp.pk %}" class="small text-danger" onclick="return confirm('Deactivate {{ emp.name }}?');">Deactivate</a>{% endif %}
+      </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="8" class="text-center text-muted py-4">No employees found.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

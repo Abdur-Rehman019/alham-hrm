@@ -1,0 +1,37 @@
+{% extends 'core/base.html' %}
+{% block page_title %}Attendance{% endblock %}
+{% block content %}
+<form method="get" class="row g-2 mb-3">
+  <div class="col-auto">
+    <select name="employee" class="form-select" onchange="this.form.submit()">
+      <option value="">All employees</option>
+      {% for emp in employees %}
+        <option value="{{ emp.pk }}" {% if selected_employee == emp.pk|stringformat:"s" %}selected{% endif %}>{{ emp.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-auto ms-auto">
+    <a href="{% url 'leave_add' %}" class="btn btn-primary">+ Log Leave</a>
+  </div>
+</form>
+
+<div class="card">
+<table class="table table-hover mb-0">
+  <thead><tr><th class="ps-3">Employee</th><th>Date</th><th>Type</th><th>Reason</th><th>Deducted</th><th class="pe-3"></th></tr></thead>
+  <tbody>
+    {% for leave in leaves %}
+    <tr>
+      <td class="ps-3">{{ leave.employee.name }}</td>
+      <td>{{ leave.date }}</td>
+      <td>{{ leave.get_leave_type_display }}</td>
+      <td>{{ leave.reason|default:"—" }}</td>
+      <td>{% if leave.is_deducted %}<span class="badge bg-danger">Yes</span>{% else %}<span class="badge bg-success">No</span>{% endif %}</td>
+      <td class="pe-3"><a href="{% url 'leave_delete' leave.pk %}" class="small text-danger" onclick="return confirm('Remove this leave entry?');">Remove</a></td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="6" class="text-center text-muted py-4">No leave records yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

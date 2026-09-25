@@ -1,0 +1,16 @@
+{% extends 'core/base.html' %}
+{% block page_title %}Terminate {{ employee.name }}{% endblock %}
+{% block content %}
+<div class="card p-4" style="max-width: 480px;">
+  <div class="alert alert-warning small">This marks {{ employee.name }} as no longer active as of the date below. Their historical records (payroll, attendance, enrollments) are kept, they just stop appearing in active lists and payroll runs going forward.</div>
+  <form method="post">
+    {% csrf_token %}
+    <div class="mb-3">
+      <label class="form-label small fw-semibold">Leaving Date</label>
+      <input type="date" name="leaving_date" class="form-control" value="{% now 'Y-m-d' %}" required>
+    </div>
+    <button type="submit" class="btn btn-danger" onclick="return confirm('Confirm termination for {{ employee.name }}?');">Confirm Termination</button>
+    <a href="{% url 'employee_detail' employee.pk %}" class="btn btn-outline-secondary">Cancel</a>
+  </form>
+</div>
+{% endblock %}

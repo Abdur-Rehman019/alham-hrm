@@ -1,0 +1,66 @@
+{% extends 'core/base.html' %}
+{% block page_title %}Payroll{% endblock %}
+{% block content %}
+<div class="row g-3">
+  <div class="col-md-4">
+    <div class="card p-3">
+      <h6 class="fw-semibold mb-3">Generate Payroll</h6>
+      <form method="post">
+        {% csrf_token %}
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">Employee</label>
+          <select name="employee_id" class="form-select" required>
+            {% for emp in employees %}
+              <option value="{{ emp.pk }}">{{ emp.name }} ({{ emp.employee_id }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="row">
+          <div class="col-6 mb-3">
+            <label class="form-label small fw-semibold">Month</label>
+            <select name="month" class="form-select" required>
+              {% for m in months %}
+                <option value="{{ forloop.counter }}" {% if forloop.counter == selected_month %}selected{% endif %}>{{ m }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-6 mb-3">
+            <label class="form-label small fw-semibold">Year</label>
+            <input type="number" name="year" class="form-control" value="{{ selected_year }}" required>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary w-100 mb-2">Generate / Update for This Employee</button>
+      </form>
+      <form method="post" onsubmit="return confirm('Generate payroll for every active employee for this period?');">
+        {% csrf_token %}
+        <input type="hidden" name="month" value="{{ selected_month }}">
+        <input type="hidden" name="year" value="{{ selected_year }}">
+        <input type="hidden" name="generate_all" value="1">
+        <button type="submit" class="btn btn-outline-primary w-100"><i class="bi bi-people-fill"></i> Generate for All Active Employees</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="col-md-8">
+    <div class="card">
+      <table class="table mb-0">
+        <thead><tr><th class="ps-3">Employee</th><th>Base</th><th>Leave Deduction</th><th>Incentives</th><th>Net Pay</th><th class="pe-3"></th></tr></thead>
+        <tbody>
+          {% for p in payrolls %}
+          <tr>
+            <td class="ps-3">{{ p.employee.name }}</td>
+            <td>PKR {{ p.base_salary }}</td>
+            <td class="text-danger">-PKR {{ p.leave_deduction }}</td>
+            <td class="text-success">+PKR {{ p.incentive_total }}</td>
+            <td class="fw-semibold">PKR {{ p.net_pay }}</td>
+            <td class="pe-3"><a href="{% url 'payslip_pdf' p.pk %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-download"></i> Payslip</a></td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" class="text-center text-muted py-4">No payroll generated for this period yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
