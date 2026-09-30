@@ -15,4 +15,20 @@
   <a href="{% url 'employee_list' %}" class="btn btn-outline-secondary">Cancel</a>
 </form>
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const activeCheckbox = document.querySelector('input[name="is_active"]');
+  const leavingField = document.querySelector('input[name="leaving_date"]');
+  function toggleLeaving() {
+    if (leavingField) {
+      leavingField.closest('.mb-3').style.display = activeCheckbox.checked ? 'none' : 'block';
+      if (activeCheckbox.checked) leavingField.value = '';
+    }
+  }
+  if (activeCheckbox) {
+    activeCheckbox.addEventListener('change', toggleLeaving);
+    toggleLeaving();
+  }
+});
+</script>
 {% endblock %}

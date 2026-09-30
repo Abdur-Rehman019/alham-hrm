@@ -85,6 +85,7 @@ class Employee(models.Model):
 
         if self.leaving_date and self.leaving_date <= timezone.now().date():
             self.is_active = False
+            if self.is_active: self.leaving_date = None
 
         if not self.employee_id:
             with transaction.atomic():
