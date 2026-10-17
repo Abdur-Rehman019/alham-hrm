@@ -1,0 +1,34 @@
+{% extends 'core/base.html' %}
+{% block page_title %}Leave Requests{% endblock %}
+{% block content %}
+<div class="card mb-3">
+  <div class="p-3 pb-0"><h6 class="fw-semibold mb-0">Awaiting your decision</h6></div>
+  <div class="table-responsive"><table class="table mb-0 align-middle">
+    <thead><tr><th class="ps-3">Employee</th><th>Leave date</th><th>Reason</th><th>This month</th><th class="pe-3" style="min-width:330px;">Decision</th></tr></thead>
+    <tbody>
+    {% for r in pending %}
+      <tr>
+        <td class="ps-3"><a href="{% url 'employee_detail' r.employee.pk %}" class="fw-semibold text-decoration-none">{{ r.employee.name }}</a><div class="small text-muted">requested {{ r.requested_at|date:"d M, g:i A" }}</div></td>
+        <td>{{ r.date|date:"D, d M Y" }}</td>
+        <td class="small">{{ r.reason }}</td>
+        <td class="small">{{ r.leaves_used }} of {{ free_leaves }} free used{% if r.will_deduct %}<br><span class="text-danger fw-semibold">Salary deduction applies</span>{% else %}<br><span class="text-success">Within free leaves</span>{% endif %}</td>
+        <td class="pe-3">
+          <div class="d-flex gap-2">
+            <form method="post" action="{% url 'leave_request_approve' r.pk %}">{% csrf_token %}<button class="btn btn-sm btn-primary">Approve</button></form>
+            <form method="post" action="{% url 'leave_request_reject' r.pk %}" class="d-flex gap-2 flex-grow-1">{% csrf_token %}<input name="note" class="form-control form-control-sm" placeholder="Reason (optional)" maxlength="255"><button class="btn btn-sm btn-outline-danger">Reject</button></form>
+          </div>
+        </td>
+      </tr>
+    {% empty %}<tr><td colspan="5" class="text-center text-muted py-4">No leave requests are waiting.</td></tr>{% endfor %}
+    </tbody></table></div>
+</div>
+<div class="card">
+  <div class="p-3 pb-0"><h6 class="fw-semibold mb-0">Recently decided</h6></div>
+  <div class="table-responsive"><table class="table table-sm mb-0">
+    <thead><tr><th class="ps-3">Employee</th><th>Leave date</th><th>Status</th><th>By</th><th class="pe-3">Note</th></tr></thead><tbody>
+    {% for r in recent %}<tr><td class="ps-3">{{ r.employee.name }}</td><td>{{ r.date|date:"d M Y" }}</td>
+      <td><span class="badge {% if r.status == 'approved' %}bg-success{% elif r.status == 'rejected' %}bg-danger{% else %}bg-secondary{% endif %}">{{ r.get_status_display }}</span></td>
+      <td class="small">{{ r.decided_by|default:"-" }}</td><td class="pe-3 small text-muted">{{ r.decision_note|default:"" }}</td></tr>
+    {% empty %}<tr><td colspan="5" class="text-center text-muted py-3">Nothing decided yet.</td></tr>{% endfor %}</tbody></table></div>
+</div>
+{% endblock %}

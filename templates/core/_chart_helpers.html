@@ -1,0 +1,32 @@
+{{ charts|json_script:"chart-data" }}
+<script>
+const DATA = JSON.parse(document.getElementById('chart-data').textContent);
+const C = {blue: '#063fb0', lime: '#dbe803', red: '#ef4444', green: '#16a34a', amber: '#f59e0b', gray: '#9ca3af', navy: '#0a1e4d'};
+Chart.defaults.font.family = "'Inter', sans-serif";
+Chart.defaults.color = '#6b7280';
+Chart.defaults.plugins.legend.position = 'bottom';
+Chart.defaults.plugins.legend.labels.usePointStyle = true;
+function hrmChart(id, config) {
+  const el = document.getElementById(id);
+  return el ? new Chart(el, config) : null;
+}
+function minutesToClock(v) {
+  const h = Math.floor(v / 60), m = Math.round(v % 60);
+  return ((h + 11) % 12 + 1) + ':' + String(m).padStart(2, '0') + ' ' + (h >= 12 ? 'PM' : 'AM');
+}
+const rateColor = v => v >= 90 ? C.green : (v >= 75 ? C.amber : C.red);
+const stackedAttendance = (labels, present, leave, absent) => ({
+  type: 'bar',
+  data: {labels, datasets: [
+    {label: 'Present', data: present, backgroundColor: C.blue, borderRadius: 3},
+    {label: 'Leave', data: leave, backgroundColor: C.lime, borderRadius: 3},
+    {label: 'Absent', data: absent, backgroundColor: C.red, borderRadius: 3},
+  ]},
+  options: {scales: {x: {stacked: true, grid: {display: false}}, y: {stacked: true, beginAtZero: true, ticks: {precision: 0}}}},
+});
+const doughnut = (labels, data) => ({
+  type: 'doughnut',
+  data: {labels, datasets: [{data, backgroundColor: [C.blue, C.lime, C.navy, C.amber, C.red, C.green, C.gray], borderWidth: 2}]},
+  options: {cutout: '62%'},
+});
+</script>

@@ -1,4 +1,5 @@
 from django import forms
+from django.contrib.auth import password_validation
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from .models import Employee
@@ -24,34 +25,41 @@ class EmployeeForm(forms.ModelForm):
             'photo': forms.ClearableFileInput(attrs={'class': 'form-control'}),
         }
 
+    def clean(self):
+        cleaned = super().clean()
+        # Ticking "Is active" means the person is (back) at work, so any old leaving date is dropped.
+        if cleaned.get('is_active') and cleaned.get('leaving_date'):
+            cleaned['leaving_date'] = None
+        return cleaned
+
 
 class CreateLoginForm(forms.Form):
-    username = forms.CharField(
-        max_length=150, widget=forms.TextInput(attrs={'class': 'form-control'})
-    )
+    username = forms.CharField(max_length=150, widget=forms.TextInput(attrs={'class': 'form-control'}))
     email = forms.EmailField(
         required=False,
         help_text='Needed if this person should be able to use "Forgot password".',
-        widget=forms.EmailInput(attrs={'class': 'form-control'})
+        widget=forms.EmailInput(attrs={'class': 'form-control'}),
     )
-    password1 = forms.CharField(
-        label='Password', widget=forms.PasswordInput(attrs={'class': 'form-control'})
-    )
-    password2 = forms.CharField(
-        label='Confirm password', widget=forms.PasswordInput(attrs={'class': 'form-control'})
-    )
+    password1 = forms.CharField(label='Temporary password', widget=forms.PasswordInput(attrs={'class': 'form-control'}))
+    password2 = forms.CharField(label='Confirm temporary password', widget=forms.PasswordInput(attrs={'class': 'form-control'}))
 
     def clean_username(self):
-        username = self.cleaned_data['username']
-        if User.objects.filter(username=username).exists():
+        username = self.cleaned_data['username'].strip()
+        if User.objects.filter(username__iexact=username).exists():
             raise ValidationError('That username is already taken.')
         return username
+
+    def clean_email(self):
+        email = self.cleaned_data.get('email', '').strip()
+        if email and User.objects.filter(email__iexact=email).exists():
+            raise ValidationError('Another account already uses this email.')
+        return email
 
     def clean(self):
         cleaned = super().clean()
         p1, p2 = cleaned.get('password1'), cleaned.get('password2')
-        if p1 and p2 and p1 != p2:
-            raise ValidationError('Passwords do not match.')
-        if p1 and len(p1) < 8:
-            raise ValidationError('Password must be at least 8 characters.')
+        if p1 and p2:
+            if p1 != p2:
+                raise ValidationError('Passwords do not match.')
+            password_validation.validate_password(p1)
         return cleaned

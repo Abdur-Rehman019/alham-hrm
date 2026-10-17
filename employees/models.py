@@ -41,11 +41,12 @@ class Employee(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
         null=True, blank=True, related_name='employee_profile'
     )
+    must_change_password = models.BooleanField(default=False)
 
     def clean(self):
         super().clean()
         errors = {}
-        today = timezone.now().date()
+        today = timezone.localdate()
 
         if not self.name or not self.name.strip():
             errors['name'] = 'Name cannot be empty.'
@@ -83,21 +84,23 @@ class Employee(models.Model):
     def save(self, *args, **kwargs):
         self.full_clean()
 
-        if self.leaving_date and self.leaving_date <= timezone.now().date():
+        # A leaving date in the past means this person has left.
+        if self.leaving_date and self.leaving_date <= timezone.localdate():
             self.is_active = False
-            if self.is_active: self.leaving_date = None
 
-        if not self.employee_id:
-            with transaction.atomic():
+        with transaction.atomic():
+            if not self.employee_id:
                 super().save(*args, **kwargs)
                 self.employee_id = f"ALHAM-EMP-{self.id:04d}"
-                kwargs['force_insert'] = False
                 super().save(update_fields=['employee_id'])
-        else:
-            super().save(*args, **kwargs)
+            else:
+                super().save(*args, **kwargs)
+            # The login follows employment status: inactive employees cannot sign in.
+            if self.user_id:
+                type(self.user).objects.filter(pk=self.user_id).update(is_active=self.is_active)
 
     def current_month_leaves(self):
-        today = timezone.now().date()
+        today = timezone.localdate()
         return self.leaves.filter(
             date__year=today.year, 
             date__month=today.month

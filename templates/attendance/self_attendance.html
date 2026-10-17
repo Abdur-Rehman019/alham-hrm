@@ -1,71 +1,108 @@
 {% extends 'core/base.html' %}
-{% block page_title %}My Attendance{% endblock %}
+{% block page_title %}My Portal{% endblock %}
 {% block content %}
+{% if not employee %}
+  <div class="alert alert-danger">Your account is not linked to an employee record yet. Please contact your admin.</div>
+{% else %}
 
-{% if employee %}
-<div class="row g-3">
-  <div class="col-md-5">
-    <div class="card p-4 text-center">
-      {% if employee.photo %}
-        <img src="{{ employee.photo.url }}" class="rounded-circle mx-auto mb-3" style="width:90px;height:90px;object-fit:cover;">
-      {% else %}
-        <div class="rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width:90px;height:90px;background:#eef2ff;color:#063fb0;font-size:2rem;font-weight:700;">
-          {{ employee.name|slice:":1" }}
-        </div>
-      {% endif %}
-      <h5 class="fw-bold mb-0">{{ employee.name }}</h5>
-      <p class="text-muted small mb-4">{{ employee.employee_id }} &middot; {{ employee.get_role_display }}</p>
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <div><h5 class="fw-bold mb-0">Hello, {{ employee.name }}</h5><span class="text-muted small">{{ employee.employee_id }} &middot; {{ employee.get_role_display }}</span></div>
+  <select class="form-select form-select-sm" style="max-width:220px;" onchange="const [y,m]=this.value.split('-'); location.href='?month='+m+'&year='+y;">
+    {% for o in options %}<option value="{{ o.year }}-{{ o.month }}" {% if o.year == year and o.month == month %}selected{% endif %}>{{ o.label }}</option>{% endfor %}
+  </select>
+</div>
 
+<div class="row g-3 mb-3">
+  <div class="col-lg-4">
+    <div class="card p-4 text-center h-100">
+      {% if employee.photo %}<img src="{{ employee.photo.url }}" class="rounded-circle mx-auto mb-3" style="width:80px;height:80px;object-fit:cover;">
+      {% else %}<div class="rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width:80px;height:80px;background:#eef2ff;color:#063fb0;font-size:1.8rem;font-weight:700;">{{ employee.name|slice:":1" }}</div>{% endif %}
+      <p class="text-muted small mb-3">{{ today|date:"l, d F Y" }}</p>
       {% if today_record %}
-        <div class="alert alert-success py-2 mb-0">
-          {% if today_record.status == 'leave' %}
-            You're marked on leave today.
-          {% else %}
-            Checked in today at <strong>{{ today_record.check_in_time|time:"g:i A" }}</strong>.
-          {% endif %}
+        <div class="alert {% if today_record.status == 'leave' %}alert-warning{% else %}alert-success{% endif %} py-2 mb-0">
+          {% if today_record.status == 'leave' %}You are on approved leave today.{% elif today_record.check_in_time %}Checked in at <strong>{{ today_record.check_in_time|time:"g:i A" }}</strong>.{% else %}Today is recorded as {{ today_record.get_status_display|lower }}.{% endif %}
         </div>
+      {% elif is_sunday %}<div class="alert alert-secondary py-2 mb-0">Today is Sunday, the weekly holiday.</div>
       {% else %}
-        <form method="post" class="d-grid gap-2">
-          {% csrf_token %}
-          <button type="submit" name="action" value="check_in" class="btn btn-primary btn-lg">
-            <i class="bi bi-clock-fill"></i> Check In Now
-          </button>
-          <button type="submit" name="action" value="mark_leave" class="btn btn-outline-secondary" onclick="return confirm('Mark today as a leave day?');">
-            Mark Today as Leave
-          </button>
-        </form>
+        <form method="post">{% csrf_token %}<input type="hidden" name="action" value="check_in"><button type="submit" class="btn btn-primary btn-lg w-100"><i class="bi bi-clock-fill"></i> Check in now</button></form>
       {% endif %}
     </div>
   </div>
-
-  <div class="col-md-7">
-    <div class="card p-3">
-      <h6 class="fw-semibold mb-3">Your Recent Attendance</h6>
-      <table class="table table-sm mb-0">
-        <thead><tr><th>Date</th><th>Status</th><th>Check-in</th></tr></thead>
-        <tbody>
-          {% for r in recent_history %}
-          <tr>
-            <td>{{ r.date }}</td>
-            <td>
-              {% if r.status == 'present' %}<span class="badge bg-success">Present</span>
-              {% elif r.status == 'leave' %}<span class="badge" style="background:#dbe803;color:#111827;">Leave</span>
-              {% elif r.status == 'absent' %}<span class="badge bg-danger">Absent</span>
-              {% elif r.status == 'holiday' %}<span class="badge bg-secondary">Holiday</span>
-              {% else %}<span class="badge bg-warning text-dark">Needs Review</span>{% endif %}
-            </td>
-            <td>{% if r.check_in_time %}{{ r.check_in_time|time:"g:i A" }}{% else %}—{% endif %}</td>
-          </tr>
-          {% empty %}
-          <tr><td colspan="3" class="text-center text-muted py-3">No attendance history yet.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
+  <div class="col-lg-8">
+    <div class="row g-3">
+      <div class="col-sm-6 col-xl-4"><div class="card stat-card"><div class="label">Attendance rate</div><div class="value">{% if summary.rate is None %}n/a{% else %}{{ summary.rate }}%{% endif %}</div><div class="small text-muted">{{ summary.present }} of {{ summary.working_days }} working days</div></div></div>
+      <div class="col-sm-6 col-xl-4"><div class="card stat-card"><div class="label">Leaves, {{ period_label }}</div><div class="value">{{ leaves|length }} / {{ free_leaves }} free</div>{% if leaves_deducted %}<div class="small text-danger">{{ leaves_deducted }} will reduce your salary</div>{% else %}<div class="small text-muted">No salary deduction</div>{% endif %}</div></div>
+      <div class="col-sm-6 col-xl-4"><div class="card stat-card"><div class="label">Absent</div><div class="value {% if summary.absent %}text-danger{% endif %}">{{ summary.absent }}</div><div class="small text-muted">{{ summary.late }} late &middot; avg {{ summary.avg_checkin|default:"-" }}</div></div></div>
+      <div class="col-sm-6 col-xl-4"><div class="card stat-card"><div class="label">Enrolled students</div><div class="value">{{ month_enrollments|length }}</div><div class="small text-muted">{{ all_time_count }} in total</div></div></div>
+      <div class="col-sm-6 col-xl-4"><div class="card stat-card"><div class="label">Incentives, {{ period_label }}</div><div class="value">PKR {{ month_incentive }}</div><div class="small text-muted">PKR {{ all_time_incentive }} in total</div></div></div>
+      <div class="col-sm-6 col-xl-4"><div class="card stat-card">
+        {% if payroll_for_month %}<div class="label">Net pay</div><div class="value">PKR {{ payroll_for_month.net_pay }}</div><a href="{% url 'my_payslip_pdf' payroll_for_month.pk %}" class="small"><i class="bi bi-download"></i> Download payslip</a>
+        {% else %}<div class="label">Estimated net pay</div><div class="value">PKR {{ est_net }}</div><div class="small text-muted">Final once payroll is generated</div>{% endif %}</div></div>
     </div>
   </div>
 </div>
-{% else %}
-<div class="alert alert-danger">Your account isn't linked to an employee record yet. Please contact your admin.</div>
-{% endif %}
 
+<div class="row g-3 mb-3">
+  <div class="col-lg-5">
+    <div class="card p-3 h-100"><h6 class="fw-semibold mb-3"><i class="bi bi-envelope-paper"></i> Request leave</h6>
+      <form method="post">{% csrf_token %}<input type="hidden" name="action" value="request_leave">
+        <div class="mb-2"><label class="form-label small fw-semibold">Leave date</label><input type="date" name="leave_date" class="form-control" min="{{ leave_min }}" max="{{ leave_max }}" value="{{ leave_min }}" required></div>
+        <div class="mb-3"><label class="form-label small fw-semibold">Reason</label><input type="text" name="reason" class="form-control" maxlength="255" minlength="3" placeholder="Short reason" required></div>
+        <button class="btn btn-primary w-100">Send request to admin</button>
+      </form>
+      <p class="text-muted small mt-2 mb-0">The first {{ free_leaves }} leaves each month are free. Further leaves reduce your salary for that day.</p>
+    </div>
+  </div>
+  <div class="col-lg-7">
+    <div class="card p-3 h-100"><h6 class="fw-semibold mb-3">My leave requests</h6>
+      <div class="table-responsive"><table class="table table-sm mb-0 align-middle">
+        <thead><tr><th>Date</th><th>Reason</th><th>Status</th><th></th></tr></thead><tbody>
+        {% for r in leave_requests %}<tr><td>{{ r.date|date:"D, d M" }}</td><td class="small">{{ r.reason }}{% if r.decision_note %}<div class="text-muted">Admin: {{ r.decision_note }}</div>{% endif %}</td>
+          <td><span class="badge {% if r.status == 'approved' %}bg-success{% elif r.status == 'pending' %}bg-warning text-dark{% elif r.status == 'rejected' %}bg-danger{% else %}bg-secondary{% endif %}">{{ r.get_status_display }}</span></td>
+          <td>{% if r.status == 'pending' %}<form method="post" action="{% url 'leave_request_cancel' r.pk %}">{% csrf_token %}<button class="btn btn-sm btn-link text-danger p-0">Cancel</button></form>{% endif %}</td></tr>
+        {% empty %}<tr><td colspan="4" class="text-center text-muted py-3">You have not requested any leave.</td></tr>{% endfor %}</tbody></table></div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-lg-6"><div class="card p-3 h-100"><h6 class="fw-semibold mb-3">My enrollments, last 6 months</h6>
+    {% if has_enrollments %}<canvas id="enrollChart" height="120"></canvas>{% else %}<div class="empty-state"><i class="bi bi-mortarboard"></i>No enrollments yet.</div>{% endif %}</div></div>
+  <div class="col-lg-6"><div class="card p-3 h-100"><h6 class="fw-semibold mb-3">My incentives, last 6 months</h6>
+    {% if has_enrollments %}<canvas id="incentiveChart" height="120"></canvas>{% else %}<div class="empty-state"><i class="bi bi-cash-coin"></i>No incentives yet.</div>{% endif %}</div></div>
+  <div class="col-lg-6"><div class="card p-3 h-100"><h6 class="fw-semibold mb-3">My attendance, last 6 months</h6>
+    {% if has_attendance %}<canvas id="attendChart" height="120"></canvas>{% else %}<div class="empty-state"><i class="bi bi-calendar-x"></i>No attendance yet.</div>{% endif %}</div></div>
+  <div class="col-lg-6"><div class="card p-3 h-100"><h6 class="fw-semibold mb-3">Enrollments by country</h6>
+    {% if has_countries %}<canvas id="countryChart" height="150"></canvas>{% else %}<div class="empty-state"><i class="bi bi-globe-asia-australia"></i>No enrollments yet.</div>{% endif %}</div></div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-6"><div class="card p-3"><h6 class="fw-semibold mb-3">Students I enrolled, {{ period_label }}</h6>
+    <div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Student</th><th>Country</th><th>Date</th><th>Incentive</th></tr></thead><tbody>
+      {% for e in month_enrollments %}<tr><td>{{ e.student_name }}</td><td>{{ e.destination_country }}</td><td>{{ e.confirmed_on|date:"d M" }}</td><td>PKR {{ e.incentive_amount }}</td></tr>
+      {% empty %}<tr><td colspan="4" class="text-center text-muted py-3">No enrollments this month.</td></tr>{% endfor %}</tbody></table></div></div></div>
+  <div class="col-lg-6"><div class="card p-3"><h6 class="fw-semibold mb-3">My payslips</h6>
+    <div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Period</th><th>Base</th><th>Deduction</th><th>Incentives</th><th>Net</th><th></th></tr></thead><tbody>
+      {% for p in payrolls %}<tr><td>{{ p.month }}/{{ p.year }}</td><td>{{ p.base_salary }}</td><td class="text-danger">-{{ p.leave_deduction }}</td><td class="text-success">+{{ p.incentive_total }}</td><td class="fw-semibold">{{ p.net_pay }}</td><td><a href="{% url 'my_payslip_pdf' p.pk %}" class="small">PDF</a></td></tr>
+      {% empty %}<tr><td colspan="6" class="text-center text-muted py-3">No payslips generated yet.</td></tr>{% endfor %}</tbody></table></div></div></div>
+  <div class="col-12"><div class="card p-3"><h6 class="fw-semibold mb-3">My attendance, {{ period_label }}</h6>
+    <div class="table-responsive"><table class="table table-sm mb-0"><thead><tr><th>Date</th><th>Status</th><th>Check-in</th><th>Note</th></tr></thead><tbody>
+      {% for r in recent_history %}<tr><td>{{ r.date|date:"D, d M" }}</td><td>{% include 'core/_status_badge.html' with status=r.status %}</td><td>{% if r.check_in %}{{ r.check_in|time:"g:i A" }}{% else %}-{% endif %}</td><td class="small text-muted">{{ r.note|default:"" }}</td></tr>
+      {% empty %}<tr><td colspan="4" class="text-center text-muted py-3">No attendance recorded for this month.</td></tr>{% endfor %}</tbody></table></div></div></div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+{% if employee %}
+{% include 'core/_chart_helpers.html' %}
+<script>
+hrmChart('enrollChart', {type: 'bar', data: {labels: DATA.months, datasets: [{label: 'Enrollments', data: DATA.enrollments, backgroundColor: C.blue, borderRadius: 6}]},
+  options: {plugins: {legend: {display: false}}, scales: {y: {beginAtZero: true, ticks: {precision: 0}}}}});
+hrmChart('incentiveChart', {type: 'line', data: {labels: DATA.months, datasets: [{label: 'Incentives (PKR)', data: DATA.incentives, borderColor: C.amber, backgroundColor: 'rgba(245,158,11,.15)', fill: true, tension: .3, pointRadius: 4}]},
+  options: {plugins: {legend: {display: false}}, scales: {y: {beginAtZero: true}}}});
+hrmChart('attendChart', stackedAttendance(DATA.months, DATA.present, DATA.leave, DATA.absent));
+hrmChart('countryChart', doughnut(DATA.countries, DATA.country_counts));
+</script>
+{% endif %}
 {% endblock %}

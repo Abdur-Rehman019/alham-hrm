@@ -2,84 +2,106 @@
 {% block page_title %}{{ employee.name }}{% endblock %}
 {% block content %}
 
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <a href="{% url 'employee_list' %}" class="small text-decoration-none"><i class="bi bi-arrow-left"></i> All employees</a>
+  <select class="form-select form-select-sm" style="max-width:220px;" onchange="const [y,m]=this.value.split('-'); location.href='?month='+m+'&year='+y;">
+    {% for o in options %}<option value="{{ o.year }}-{{ o.month }}" {% if o.year == year and o.month == month %}selected{% endif %}>{{ o.label }}</option>{% endfor %}
+  </select>
+</div>
+
 <div class="row g-3 mb-3">
-  <div class="col-md-4">
-    <div class="card p-3">
+  <div class="col-lg-4">
+    <div class="card p-3 h-100">
       <div class="d-flex align-items-center gap-3 mb-3">
-        {% if employee.photo %}
-          <img src="{{ employee.photo.url }}" class="rounded-circle" style="width:64px;height:64px;object-fit:cover;">
-        {% else %}
-          <div class="rounded-circle d-flex align-items-center justify-content-center" style="width:64px;height:64px;background:#eef2ff;color:#063fb0;font-size:1.4rem;font-weight:700;">
-            {{ employee.name|slice:":1" }}
-          </div>
-        {% endif %}
-        <div>
-          <h6 class="fw-bold mb-0">{{ employee.name }}</h6>
-          <span class="text-muted small">{{ employee.employee_id }}</span>
-        </div>
+        {% if employee.photo %}<img src="{{ employee.photo.url }}" class="rounded-circle" style="width:64px;height:64px;object-fit:cover;">
+        {% else %}<div class="rounded-circle d-flex align-items-center justify-content-center" style="width:64px;height:64px;background:#eef2ff;color:#063fb0;font-size:1.4rem;font-weight:700;">{{ employee.name|slice:":1" }}</div>{% endif %}
+        <div><h6 class="fw-bold mb-0">{{ employee.name }}</h6><span class="text-muted small">{{ employee.employee_id }}</span></div>
       </div>
       <p class="mb-1 small"><strong>Role:</strong> {{ employee.get_role_display }}</p>
-      <p class="mb-1 small"><strong>Monthly Salary:</strong> PKR {{ employee.monthly_salary }}</p>
-      <p class="mb-1 small"><strong>CNIC:</strong> {{ employee.cnic|default:"—" }}</p>
-      <p class="mb-1 small"><strong>Phone:</strong> {{ employee.phone|default:"—" }}</p>
-      <p class="mb-1 small"><strong>Email:</strong> {{ employee.email|default:"—" }}</p>
+      <p class="mb-1 small"><strong>Monthly salary:</strong> PKR {{ employee.monthly_salary }}</p>
+      <p class="mb-1 small"><strong>CNIC:</strong> {{ employee.cnic|default:"-" }}</p>
+      <p class="mb-1 small"><strong>Phone:</strong> {{ employee.phone|default:"-" }}</p>
+      <p class="mb-1 small"><strong>Email:</strong> {{ employee.email|default:"-" }}</p>
       <p class="mb-1 small"><strong>Joined:</strong> {{ employee.joined_on }}</p>
-      <p class="mb-3 small">
-        <strong>Status:</strong>
-        {% if employee.is_active %}<span class="badge bg-success">Active</span>{% else %}<span class="badge bg-secondary">Inactive</span>{% endif %}
-      </p>
-      <a href="{% url 'employee_edit' employee.pk %}" class="btn btn-sm btn-outline-primary mb-2 w-100">Edit Details</a>
-      {% if employee.is_active %}
-        <a href="{% url 'employee_terminate' employee.pk %}" class="btn btn-sm btn-outline-danger mb-2 w-100">Terminate Employee</a>
-      {% endif %}
-
+      {% if employee.leaving_date %}<p class="mb-1 small"><strong>Left:</strong> {{ employee.leaving_date }}</p>{% endif %}
+      <p class="mb-3 small"><strong>Status:</strong> {% if employee.is_active %}<span class="badge bg-success">Active</span>{% else %}<span class="badge bg-secondary">Inactive</span>{% endif %}</p>
+      <a href="{% url 'employee_edit' employee.pk %}" class="btn btn-sm btn-outline-primary mb-2 w-100">Edit details</a>
+      {% if employee.is_active %}<a href="{% url 'employee_terminate' employee.pk %}" class="btn btn-sm btn-outline-danger mb-2 w-100">Terminate employee</a>{% endif %}
       {% if employee.user %}
-        <div class="alert alert-success py-2 small mb-2">Login active: <strong>{{ employee.user.username }}</strong></div>
-        <a href="{% url 'employee_remove_login' employee.pk %}" class="btn btn-sm btn-outline-danger w-100" onclick="return confirm('Remove login access for {{ employee.name }}?');">Remove Login Access</a>
-      {% else %}
-        <a href="{% url 'employee_create_login' employee.pk %}" class="btn btn-sm btn-outline-secondary w-100"><i class="bi bi-key-fill"></i> Create Login (Self Check-in)</a>
+        <div class="alert alert-success py-2 small mb-2">Login: <strong>{{ employee.user.username }}</strong>{% if employee.must_change_password %}<br><span class="text-muted">Has not set their own password yet.</span>{% endif %}</div>
+        <form method="post" action="{% url 'employee_reset_password' employee.pk %}" class="mb-2" onsubmit="return confirm('Issue a new temporary password for {{ employee.name }}?');">{% csrf_token %}<button class="btn btn-sm btn-outline-secondary w-100"><i class="bi bi-key-fill"></i> Reset password</button></form>
+        <a href="{% url 'employee_remove_login' employee.pk %}" class="btn btn-sm btn-outline-danger w-100" onclick="return confirm('Remove login access for {{ employee.name }}?');">Remove login access</a>
+      {% elif employee.is_active %}
+        <a href="{% url 'employee_create_login' employee.pk %}" class="btn btn-sm btn-outline-secondary w-100"><i class="bi bi-key-fill"></i> Create login</a>
       {% endif %}
     </div>
   </div>
-
-  <div class="col-md-4">
-    <div class="card stat-card">
-      <div class="label">Leaves This Month</div>
-      <div class="value">{{ employee.current_month_leaves }} / 2 free</div>
+  <div class="col-lg-8">
+    <div class="row g-3">
+      <div class="col-sm-6 col-xl-4"><div class="card stat-card"><div class="label">Attendance rate</div><div class="value">{% if summary.rate is None %}n/a{% else %}{{ summary.rate }}%{% endif %}</div><div class="small text-muted">{{ period_label }}</div></div></div>
+      <div class="col-sm-6 col-xl-4"><div class="card stat-card"><div class="label">Present / working days</div><div class="value">{{ summary.present }} / {{ summary.working_days }}</div></div></div>
+      <div class="col-sm-6 col-xl-4"><div class="card stat-card"><div class="label">Absent</div><div class="value {% if summary.absent %}text-danger{% endif %}">{{ summary.absent }}</div></div></div>
+      <div class="col-sm-6 col-xl-4"><div class="card stat-card"><div class="label">Leaves used</div><div class="value">{{ leaves_used }} / {{ free_leaves }} free</div>{% if leaves_deducted %}<div class="small text-danger">{{ leaves_deducted }} deducted</div>{% endif %}</div></div>
+      <div class="col-sm-6 col-xl-4"><div class="card stat-card"><div class="label">Enrollments</div><div class="value">{{ month_enrollments|length }}</div></div></div>
+      <div class="col-sm-6 col-xl-4"><div class="card stat-card"><div class="label">Incentives</div><div class="value">PKR {{ month_incentive }}</div></div></div>
     </div>
-    <div class="card stat-card mt-3">
-      <div class="label">Total Incentives Earned</div>
-      <div class="value">PKR {{ employee.total_incentives }}</div>
-    </div>
-  </div>
-
-  <div class="col-md-4">
-    <div class="card p-3" style="height:100%;">
-      <h6 class="fw-semibold mb-3">Net Pay Trend</h6>
-      {% if has_payroll_data %}<canvas id="payTrendChart" height="140"></canvas>
-      {% else %}<div class="empty-state"><i class="bi bi-graph-up"></i>No payroll generated for this employee yet.</div>{% endif %}
-    </div>
+    {% if summary.needs_review %}<div class="alert alert-warning small mt-3 mb-0"><i class="bi bi-flag-fill"></i> {{ summary.needs_review }} attendance entr{{ summary.needs_review|pluralize:"y,ies" }} this month still need review. <a href="{% url 'attendance_review' %}">Review now</a></div>{% endif %}
+    {% if summary.avg_checkin %}<p class="text-muted small mt-3 mb-0">Average check-in time in {{ period_label }}: <strong>{{ summary.avg_checkin }}</strong>{% if summary.late %} &middot; {{ summary.late }} marked late{% endif %}</p>{% endif %}
   </div>
 </div>
 
 <div class="row g-3 mb-3">
-  <div class="col-md-6">
-    <div class="card p-3">
-      <h6 class="fw-semibold mb-3">Enrollments — Last 6 Months</h6>
-      {% if has_enrollment_trend_data %}<canvas id="enrollmentTrendChart" height="110"></canvas>
-      {% else %}<div class="empty-state"><i class="bi bi-mortarboard"></i>No enrollments in the last 6 months.</div>{% endif %}
-    </div>
-  </div>
-  <div class="col-md-6">
-    <div class="card p-3">
-      <h6 class="fw-semibold mb-3">Attendance — Last 6 Months</h6>
-      {% if has_attendance_trend_data %}<canvas id="empAttendanceTrendChart" height="110"></canvas>
-      {% else %}<div class="empty-state"><i class="bi bi-calendar-x"></i>No attendance recorded in the last 6 months.</div>{% endif %}
-    </div>
-  </div>
+  <div class="col-lg-6"><div class="card p-3 h-100"><h6 class="fw-semibold mb-3">Enrollments, last 6 months</h6>
+    {% if has_enrollments %}<canvas id="enrollChart" height="120"></canvas>{% else %}<div class="empty-state"><i class="bi bi-mortarboard"></i>No enrollments in the last 6 months.</div>{% endif %}</div></div>
+  <div class="col-lg-6"><div class="card p-3 h-100"><h6 class="fw-semibold mb-3">Incentives earned, last 6 months</h6>
+    {% if has_enrollments %}<canvas id="incentiveChart" height="120"></canvas>{% else %}<div class="empty-state"><i class="bi bi-cash-coin"></i>No incentives in the last 6 months.</div>{% endif %}</div></div>
+  <div class="col-lg-6"><div class="card p-3 h-100"><h6 class="fw-semibold mb-3">Attendance, last 6 months</h6>
+    {% if has_attendance %}<canvas id="attendChart" height="120"></canvas>{% else %}<div class="empty-state"><i class="bi bi-calendar-x"></i>No attendance recorded yet.</div>{% endif %}</div></div>
+  <div class="col-lg-6"><div class="card p-3 h-100"><h6 class="fw-semibold mb-3">Check-in time by day, {{ period_label }}</h6>
+    {% if has_checkins %}<canvas id="checkinChart" height="120"></canvas>{% else %}<div class="empty-state"><i class="bi bi-clock"></i>No check-in times for this month.</div>{% endif %}</div></div>
+  <div class="col-lg-6"><div class="card p-3 h-100"><h6 class="fw-semibold mb-3">Enrollments by country (all time)</h6>
+    {% if has_countries %}<canvas id="countryChart" height="150"></canvas>{% else %}<div class="empty-state"><i class="bi bi-globe-asia-australia"></i>No enrollments yet.</div>{% endif %}</div></div>
+  <div class="col-lg-6"><div class="card p-3 h-100"><h6 class="fw-semibold mb-3">Net pay, last payrolls</h6>
+    {% if has_pay %}<canvas id="payChart" height="150"></canvas>{% else %}<div class="empty-state"><i class="bi bi-graph-up"></i>No payroll generated yet.</div>{% endif %}</div></div>
 </div>
 
 <div class="row g-3">
-  <div class="col-md-6">
-    <div class="card p-3">
-      <h6 class="fw-semibold mb-3">Recent
+  <div class="col-lg-6"><div class="card p-3"><h6 class="fw-semibold mb-3">Attendance log, {{ period_label }}</h6>
+    <div class="table-responsive" style="max-height:340px;overflow-y:auto;"><table class="table table-sm mb-0">
+      <thead><tr><th>Date</th><th>Status</th><th>Check-in</th><th>Note</th></tr></thead><tbody>
+      {% for r in attendance_log %}<tr><td>{{ r.date|date:"D, d M" }}</td><td>{% include 'core/_status_badge.html' with status=r.status %}{% if r.late %} <span class="badge bg-danger">Late</span>{% endif %}</td><td>{% if r.check_in %}{{ r.check_in|time:"g:i A" }}{% else %}-{% endif %}</td><td class="small text-muted">{{ r.note|default:"" }}</td></tr>
+      {% empty %}<tr><td colspan="4" class="text-center text-muted py-3">No attendance for this month.</td></tr>{% endfor %}</tbody></table></div></div></div>
+  <div class="col-lg-6"><div class="card p-3"><h6 class="fw-semibold mb-3">Students enrolled, {{ period_label }}</h6>
+    <div class="table-responsive"><table class="table table-sm mb-0">
+      <thead><tr><th>Student</th><th>Country</th><th>Date</th><th>Incentive</th></tr></thead><tbody>
+      {% for e in month_enrollments %}<tr><td>{{ e.student_name }}</td><td>{{ e.destination_country }}</td><td>{{ e.confirmed_on|date:"d M" }}</td><td>PKR {{ e.incentive_amount }}</td></tr>
+      {% empty %}<tr><td colspan="4" class="text-center text-muted py-3">No enrollments this month.</td></tr>{% endfor %}</tbody></table></div></div></div>
+  <div class="col-lg-6"><div class="card p-3"><h6 class="fw-semibold mb-3">Leave requests</h6>
+    <div class="table-responsive"><table class="table table-sm mb-0">
+      <thead><tr><th>Date</th><th>Reason</th><th>Status</th></tr></thead><tbody>
+      {% for r in leave_requests %}<tr><td>{{ r.date|date:"d M Y" }}</td><td class="small">{{ r.reason }}</td><td><span class="badge {% if r.status == 'approved' %}bg-success{% elif r.status == 'pending' %}bg-warning text-dark{% elif r.status == 'rejected' %}bg-danger{% else %}bg-secondary{% endif %}">{{ r.get_status_display }}</span></td></tr>
+      {% empty %}<tr><td colspan="3" class="text-center text-muted py-3">No leave requests.</td></tr>{% endfor %}</tbody></table></div></div></div>
+  <div class="col-lg-6"><div class="card p-3"><h6 class="fw-semibold mb-3">Payslips</h6>
+    <div class="table-responsive"><table class="table table-sm mb-0">
+      <thead><tr><th>Period</th><th>Net pay</th><th></th></tr></thead><tbody>
+      {% for p in payrolls %}<tr><td>{{ p.month }}/{{ p.year }}</td><td>PKR {{ p.net_pay }}</td><td><a href="{% url 'payslip_pdf' p.pk %}" class="small">Download</a></td></tr>
+      {% empty %}<tr><td colspan="3" class="text-center text-muted py-3">No payroll generated yet.</td></tr>{% endfor %}</tbody></table></div></div></div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+{% include 'core/_chart_helpers.html' %}
+<script>
+hrmChart('enrollChart', {type: 'bar', data: {labels: DATA.months, datasets: [{label: 'Enrollments', data: DATA.enrollments, backgroundColor: C.blue, borderRadius: 6}]},
+  options: {plugins: {legend: {display: false}}, scales: {y: {beginAtZero: true, ticks: {precision: 0}}}}});
+hrmChart('incentiveChart', {type: 'line', data: {labels: DATA.months, datasets: [{label: 'Incentives (PKR)', data: DATA.incentives, borderColor: C.amber, backgroundColor: 'rgba(245,158,11,.15)', fill: true, tension: .3, pointRadius: 4}]},
+  options: {plugins: {legend: {display: false}}, scales: {y: {beginAtZero: true}}}});
+hrmChart('attendChart', stackedAttendance(DATA.months, DATA.present, DATA.leave, DATA.absent));
+hrmChart('checkinChart', {type: 'line', data: {labels: DATA.checkin_days, datasets: [{label: 'Check-in', data: DATA.checkin_minutes, borderColor: C.blue, backgroundColor: C.blue, tension: .25, pointRadius: 4}]},
+  options: {plugins: {legend: {display: false}, tooltip: {callbacks: {label: c => 'Checked in at ' + minutesToClock(c.parsed.y)}}},
+            scales: {y: {ticks: {callback: v => minutesToClock(v)}, suggestedMin: 540, suggestedMax: 720}, x: {title: {display: true, text: 'Day of month'}}}}});
+hrmChart('countryChart', doughnut(DATA.countries, DATA.country_counts));
+hrmChart('payChart', {type: 'line', data: {labels: DATA.pay_months, datasets: [{label: 'Net pay (PKR)', data: DATA.pay_net, borderColor: C.blue, backgroundColor: 'rgba(6,63,176,.12)', fill: true, tension: .3, pointRadius: 4}]},
+  options: {plugins: {legend: {display: false}}, scales: {y: {beginAtZero: true}}}});
+</script>
+{% endblock %}

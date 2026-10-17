@@ -103,8 +103,9 @@
 
   <div class="nav-section-label">Workforce</div>
   <a href="{% url 'employee_list' %}" class="{% if 'employee' in request.resolver_match.url_name %}active{% endif %}"><i class="bi bi-people-fill"></i> Employees</a>
-  <a href="{% url 'leave_list' %}" class="{% if 'leave' in request.resolver_match.url_name %}active{% endif %}"><i class="bi bi-calendar-check-fill"></i> Attendance</a>
+  <a href="{% url 'leave_list' %}" class={% if request.resolver_match.url_name == 'leave_list' or request.resolver_match.url_name == 'leave_add' %}active{% endif %}><i class="bi bi-calendar-check-fill"></i> Attendance</a>
   <a href="{% url 'attendance_review' %}" class="{% if request.resolver_match.url_name == 'attendance_review' %}active{% endif %}"><i class="bi bi-flag-fill"></i> Attendance Review</a>
+  <a href="{% url 'leave_requests_list' %}" class="{% if 'leave_request' in request.resolver_match.url_name %}active{% endif %}"><i class="bi bi-envelope-paper-fill"></i> Leave Requests{% if pending_leave_count %} <span class="badge ms-auto" style="background:#dbe803;color:#0a1e4d;">{{ pending_leave_count }}</span>{% endif %}</a>
 
   <div class="nav-section-label">Admissions</div>
   <a href="{% url 'enrollment_list' %}" class="{% if request.resolver_match.url_name == 'enrollment_list' %}active{% endif %}"><i class="bi bi-mortarboard-fill"></i> Enrollments</a>
@@ -120,10 +121,17 @@
   <div class="sidebar-footer">
     <a href="/admin/" target="_blank"><i class="bi bi-gear-fill"></i> Django Admin</a>
     <hr style="border-color:rgba(255,255,255,0.15);">
-    <a href="{% url 'logout' %}"><i class="bi bi-box-arrow-right"></i> Logout</a>
+        <a href="{% url 'change_password' %}"><i class="bi bi-shield-lock-fill"></i> Change password</a>
+    <form method="post" action="{% url 'logout' %}" class="m-0">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-link p-0 text-decoration-none" style="color:#b8c4e0; display:flex; align-items:center; gap:.65rem; font-size:.89rem; font-weight:500; width:100%; text-align:left;">
+        <i class="bi bi-box-arrow-right"></i> Logout
+      </button>
+    </form>
   </div>
   {% else %}
-  <a href="{% url 'self_attendance' %}" class="active"><i class="bi bi-clock-fill"></i> My Attendance</a>
+  <a href="{% url 'self_attendance' %}" class="active"><i class="bi bi-speedometer2"></i> My Portal</a>
+  <a href="{% url 'change_password' %}" class="{% if request.resolver_match.url_name == 'change_password' %}active{% endif %}"><i class="bi bi-shield-lock-fill"></i> Change password</a>
   <div class="sidebar-footer">
     <form method="post" action="{% url 'logout' %}" class="m-0">
       {% csrf_token %}

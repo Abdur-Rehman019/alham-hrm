@@ -25,7 +25,7 @@ class Leave(models.Model):
         unique_together = ('employee', 'date')
 
     def clean(self):
-        if self.date and self.date > timezone.now().date():
+        if self.date and self.date > timezone.localdate():
             raise ValidationError({'date': 'Leave date cannot be in the future.'})
 
     def save(self, *args, **kwargs):
@@ -65,6 +65,36 @@ class DailyAttendance(models.Model):
         ordering = ['-date']
         unique_together = ('employee', 'date')
         verbose_name_plural = 'Daily attendance'
+
+    def __str__(self):
+        return f"{self.employee.name} - {self.date} - {self.status}"
+
+
+class LeaveRequest(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('cancelled', 'Cancelled'),
+    ]
+
+    employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='leave_requests')
+    date = models.DateField()
+    reason = models.CharField(max_length=255)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    requested_at = models.DateTimeField(auto_now_add=True)
+    decided_at = models.DateTimeField(blank=True, null=True)
+    decided_by = models.CharField(max_length=150, blank=True)
+    decision_note = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ['-requested_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['employee', 'date'], condition=models.Q(status='pending'),
+                name='one_pending_leave_request_per_day',
+            ),
+        ]
 
     def __str__(self):
         return f"{self.employee.name} - {self.date} - {self.status}"
