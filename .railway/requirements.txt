@@ -1,0 +1,2 @@
+# Only for applying .railway/railway.py with the Railway CLI; the website itself does not use it.
+railway-sdk==0.7.0

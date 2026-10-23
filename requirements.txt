@@ -1,10 +1,19 @@
-Django>=6.0,<7.0
-openpyxl>=3.1
-python-decouple>=3.8
-Pillow>=10.0
-reportlab>=4.0
-django-axes>=6.0
-gunicorn>=21.0
-whitenoise>=6.0
-dj-database-url>=2.0
-psycopg2-binary>=2.9
+# Exact versions keep Railway builds identical to what was tested.
+# To upgrade: bump a version here, run `python manage.py test`, then deploy.
+Django==6.1.2
+openpyxl==3.1.5
+python-decouple==3.8
+Pillow==13.0.0
+reportlab==5.1.0
+django-axes==8.3.1
+gunicorn==26.2.0
+whitenoise==6.12.0
+dj-database-url==3.1.2
+psycopg2-binary==2.9.13
+
+# Installed by the packages above; pinned so they cannot change underneath them.
+asgiref==3.13.0
+sqlparse==0.6.0
+tzdata==2026.5
+et_xmlfile==2.0.0
+charset-normalizer==3.5.2
