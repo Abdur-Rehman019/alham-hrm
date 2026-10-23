@@ -1,3 +1,5 @@
+from decimal import Decimal, ROUND_HALF_UP
+
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.utils import timezone
@@ -5,9 +7,13 @@ from django.conf import settings
 from employees.models import Employee
 
 
+def _whole_rupees(value):
+    return Decimal(str(value)).quantize(Decimal('1'), rounding=ROUND_HALF_UP)
+
+
 class IncentiveRule(models.Model):
     destination_country = models.CharField(max_length=50, unique=True)
-    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    amount = models.DecimalField(max_digits=10, decimal_places=0)
 
     def clean(self):
         errors = {}
@@ -25,6 +31,7 @@ class IncentiveRule(models.Model):
     def save(self, *args, **kwargs):
         if self.destination_country:
             self.destination_country = self.destination_country.strip().title()
+        self.amount = _whole_rupees(self.amount)
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -35,7 +42,7 @@ class StudentEnrollment(models.Model):
     destination_country = models.CharField(max_length=50)
     counselor = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='enrollments')
     confirmed_on = models.DateField()
-    incentive_amount = models.DecimalField(max_digits=10, decimal_places=2, editable=False)
+    incentive_amount = models.DecimalField(max_digits=10, decimal_places=0, editable=False)
     incentive_paid = models.BooleanField(default=False)
 
     class Meta:
@@ -49,6 +56,7 @@ class StudentEnrollment(models.Model):
         if not self.incentive_amount:
             rule = IncentiveRule.objects.filter(destination_country__iexact=self.destination_country.strip()).first()
             self.incentive_amount = rule.amount if rule else 0
+        self.incentive_amount = _whole_rupees(self.incentive_amount)
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -59,10 +67,10 @@ class Payroll(models.Model):
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name='payrolls')
     month = models.PositiveSmallIntegerField()
     year = models.PositiveSmallIntegerField()
-    base_salary = models.DecimalField(max_digits=10, decimal_places=2)
-    leave_deduction = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    incentive_total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    net_pay = models.DecimalField(max_digits=10, decimal_places=2, editable=False)
+    base_salary = models.DecimalField(max_digits=10, decimal_places=0)
+    leave_deduction = models.DecimalField(max_digits=10, decimal_places=0, default=0)
+    incentive_total = models.DecimalField(max_digits=10, decimal_places=0, default=0)
+    net_pay = models.DecimalField(max_digits=10, decimal_places=0, editable=False)
     generated_on = models.DateTimeField(auto_now_add=True)
     is_approved = models.BooleanField(default=False)
     approved_at = models.DateTimeField(blank=True, null=True)
@@ -79,6 +87,9 @@ class Payroll(models.Model):
         ordering = ['-year', '-month']
 
     def save(self, *args, **kwargs):
+        self.base_salary = _whole_rupees(self.base_salary)
+        self.leave_deduction = _whole_rupees(self.leave_deduction)
+        self.incentive_total = _whole_rupees(self.incentive_total)
         self.net_pay = self.base_salary - self.leave_deduction + self.incentive_total
         super().save(*args, **kwargs)
 

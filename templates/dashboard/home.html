@@ -29,8 +29,8 @@
     <div class="row g-3">
       <div class="col-sm-6"><div class="card stat-card"><div class="icon-badge"><i class="bi bi-people-fill"></i></div><div class="label">Active employees</div><div class="value">{{ total_employees }}</div></div></div>
       <div class="col-sm-6"><div class="card stat-card"><div class="icon-badge"><i class="bi bi-mortarboard-fill"></i></div><div class="label">Enrollments, {{ period_label }}</div><div class="value">{{ enrollment_count }}</div></div></div>
-      <div class="col-sm-6"><div class="card stat-card"><div class="icon-badge"><i class="bi bi-percent"></i></div><div class="label">Incentives, {{ period_label }}</div><div class="value">PKR {{ incentives_total }}</div></div></div>
-      <div class="col-sm-6"><div class="card stat-card"><div class="icon-badge"><i class="bi bi-cash-coin"></i></div><div class="label">Payroll total, {{ period_label }}</div><div class="value">PKR {{ payroll_total }}</div></div></div>
+      <div class="col-sm-6"><div class="card stat-card"><div class="icon-badge"><i class="bi bi-percent"></i></div><div class="label">Incentives, {{ period_label }}</div><div class="value">PKR {{ incentives_total|floatformat:0 }}</div></div></div>
+      <div class="col-sm-6"><div class="card stat-card"><div class="icon-badge"><i class="bi bi-cash-coin"></i></div><div class="label">Payroll total, {{ period_label }}</div><div class="value">PKR {{ payroll_total|floatformat:0 }}</div></div></div>
     </div>
   </div>
 </div>

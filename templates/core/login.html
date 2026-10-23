@@ -1,13 +1,14 @@
 {% extends 'core/base.html' %}
+{% load static %}
 {% block guest_content %}
 <div class="d-flex align-items-center justify-content-center" style="min-height:100vh; background: linear-gradient(135deg, #0a1e4d 0%, #063fb0 100%);">
   <div class="card p-4" style="width: 380px;">
     <div class="text-center mb-3">
-      <div style="width:52px;height:52px;border-radius:14px;background:#eef2ff;color:#063fb0;display:flex;align-items:center;justify-content:center;font-size:1.5rem;margin:0 auto .75rem;">
-        <i class="bi bi-buildings-fill"></i>
+      <div style="background:#0a1e4d;border-radius:12px;padding:1rem;margin:0 auto .75rem;max-width:280px;">
+        <img src="{% static 'images/logo.svg' %}" alt="Alham" style="display:block;width:100%;max-height:70px;object-fit:contain;">
       </div>
-      <h4 class="fw-bold mb-1">ALHAM <span style="color:#dbe803; -webkit-text-stroke: 0.5px #063fb0;">HRM</span></h4>
-      <p class="text-muted small mb-0">Sign in to the admin dashboard</p>
+      <h4 class="fw-bold mb-1">ALHAM HRM</h4>
+      <p class="text-muted small mb-0">Sign in to your account</p>
     </div>
     {% if form.errors %}
       <div class="alert alert-danger py-2 small">Invalid username or password.</div>

@@ -14,9 +14,9 @@
   <div class="col-lg-8"><div class="row g-3">
     <div class="col-sm-6 col-xl-4"><div class="card stat-card"><div class="label">This month attendance</div><div class="value">{% if summary.rate is None %}—{% else %}{{ summary.rate }}%{% endif %}</div></div></div>
     <div class="col-sm-6 col-xl-4"><div class="card stat-card"><div class="label">Enrollments this month</div><div class="value">{{ month_enrollments }}</div></div></div>
-    <div class="col-sm-6 col-xl-4"><div class="card stat-card"><div class="label">Incentives this month</div><div class="value">PKR {{ month_incentives|floatformat:2 }}</div></div></div>
-    <div class="col-sm-6 col-xl-4"><div class="card stat-card"><div class="label">Total earned to date</div><div class="value">PKR {{ total_earned|floatformat:2 }}</div></div></div>
-    <div class="col-sm-6 col-xl-4"><div class="card stat-card"><div class="label">This month's estimate</div><div class="value">PKR {{ running_estimate|floatformat:2 }}</div></div></div>
+    <div class="col-sm-6 col-xl-4"><div class="card stat-card"><div class="label">Incentives this month</div><div class="value">PKR {{ month_incentives|floatformat:0 }}</div></div></div>
+    <div class="col-sm-6 col-xl-4"><div class="card stat-card"><div class="label">Total earned to date</div><div class="value">PKR {{ total_earned|floatformat:0 }}</div></div></div>
+    <div class="col-sm-6 col-xl-4"><div class="card stat-card"><div class="label">This month's estimate</div><div class="value">PKR {{ running_estimate|floatformat:0 }}</div></div></div>
     <div class="col-sm-6 col-xl-4"><div class="card stat-card"><div class="label">Average check-in</div><div class="value">{{ summary.avg_checkin|default:"—" }}</div></div></div>
   </div></div>
 </div>

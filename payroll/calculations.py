@@ -1,15 +1,12 @@
 import calendar
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal
 from typing import NamedTuple
 
 from django.db.models import Sum
 
 from attendance.models import Leave
 from core import analytics
-from payroll.models import StudentEnrollment
-
-
-MONEY = Decimal('0.01')
+from payroll.models import StudentEnrollment, _whole_rupees
 
 
 class PayrollCalculation(NamedTuple):
@@ -20,11 +17,11 @@ class PayrollCalculation(NamedTuple):
 
 
 def _money(value):
-    return Decimal(value).quantize(MONEY, rounding=ROUND_HALF_UP)
+    return _whole_rupees(value)
 
 
 def compute_payroll(employee, year, month):
-    """Return current payroll amounts, including approved leave and absence deductions."""
+    """Return whole-rupee payroll amounts, including leave and absence deductions."""
     leaves_deducted = Leave.objects.filter(
         employee=employee,
         date__year=year,

@@ -4,6 +4,8 @@ import logging
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.core.mail import get_connection
+from django.core.mail.backends.console import EmailBackend as ConsoleEmailBackend
 from django.core.exceptions import ValidationError
 from django.core.mail import EmailMessage
 from django.db.models import Sum
@@ -173,7 +175,7 @@ def payroll_generate(request):
         payroll.latest_attempt = payroll.email_attempts.first()
         payroll.email_status = (
             'Outdated' if payroll.is_outdated else
-            f"Sent on {timezone.localtime(payroll.latest_attempt.sent_at):%d %b %Y} to {payroll.latest_attempt.recipient}"
+            f"Accepted by email server on {timezone.localtime(payroll.latest_attempt.sent_at):%d %b %Y} for {payroll.latest_attempt.recipient}"
             if payroll.latest_attempt and payroll.latest_attempt.success else
             'Approved; delivery failed' if payroll.is_approved and payroll.latest_attempt else
             'Approved; not sent' if payroll.is_approved else
@@ -213,18 +215,25 @@ def _send_payslip(payroll, user):
         attempt.error = 'No email address is configured for this employee.'
         attempt.save(update_fields=['error'])
         return False, 'no email address'
-
     try:
+        if isinstance(get_connection(), ConsoleEmailBackend):
+            attempt.error = (
+                'The console email backend only prints messages to the server terminal; '
+                'configure an SMTP email backend to deliver payslips.'
+            )
+            attempt.save(update_fields=['error'])
+            return False, 'email is not configured for delivery'
+
         pdf = _payslip_pdf_response(payroll).content
         message = EmailMessage(
             subject=f"Your payslip for {calendar.month_name[payroll.month]} {payroll.year}",
             body=(
                 f"Hello {payroll.employee.name},\n\n"
                 f"Here is your payslip for {calendar.month_name[payroll.month]} {payroll.year}.\n"
-                f"Base salary: PKR {payroll.base_salary:,.2f}\n"
-                f"Leave and absence deduction: PKR {payroll.leave_deduction:,.2f}\n"
-                f"Incentives: PKR {payroll.incentive_total:,.2f}\n"
-                f"Net pay: PKR {payroll.net_pay:,.2f}\n"
+                f"Base salary: PKR {payroll.base_salary:,.0f}\n"
+                f"Leave and absence deduction: PKR {payroll.leave_deduction:,.0f}\n"
+                f"Incentives: PKR {payroll.incentive_total:,.0f}\n"
+                f"Net pay: PKR {payroll.net_pay:,.0f}\n"
             ),
             from_email=settings.DEFAULT_FROM_EMAIL,
             to=[recipient],
@@ -272,7 +281,7 @@ def payroll_approve(request, pk):
     payroll.save(update_fields=['is_approved', 'approved_at', 'approved_by', 'net_pay'])
     success, result = _send_payslip(payroll, request.user)
     if success:
-        messages.success(request, f"Payroll approved and payslip sent to {result}.")
+        messages.success(request, f"Payroll approved; the email server accepted the payslip for {result}. Check the inbox and spam folder if it is not received.")
     else:
         messages.warning(request, f"{payroll.employee.name}'s payroll is approved, but the payslip was not sent ({result}). Correct the issue, then use Resend.")
     return redirect(f"/payroll/generate/?month={payroll.month}&year={payroll.year}")
@@ -285,7 +294,7 @@ def payslip_email_send(request, pk):
     payroll = get_object_or_404(Payroll.objects.select_related('employee', 'employee__user'), pk=pk)
     success, result = _send_payslip(payroll, request.user)
     if success:
-        messages.success(request, f"Payslip resent to {result}.")
+        messages.success(request, f"The email server accepted the payslip for {result}. Check the inbox and spam folder if it is not received.")
     else:
         messages.error(request, f"{payroll.employee.name}: {result}. Approval is required before a payslip can be sent.")
     return redirect(f"/payroll/generate/?month={payroll.month}&year={payroll.year}")
@@ -338,9 +347,9 @@ def _payslip_pdf_response(payroll):
     y -= 28 * mm
     row_h = 9 * mm
     rows = [
-        ("Base Salary", f"PKR {payroll.base_salary:,.2f}", DARK),
-        ("Leave and Absence Deduction", f"- PKR {payroll.leave_deduction:,.2f}", HexColor('#dc2626')),
-        ("Incentives", f"+ PKR {payroll.incentive_total:,.2f}", HexColor('#16a34a')),
+        ("Base Salary", f"PKR {payroll.base_salary:,.0f}", DARK),
+        ("Leave and Absence Deduction", f"- PKR {payroll.leave_deduction:,.0f}", HexColor('#dc2626')),
+        ("Incentives", f"+ PKR {payroll.incentive_total:,.0f}", HexColor('#16a34a')),
     ]
     c.setStrokeColor(HexColor('#e5e7eb'))
     c.line(margin, y + 4 * mm, width - margin, y + 4 * mm)
@@ -360,7 +369,7 @@ def _payslip_pdf_response(payroll):
     c.setFillColor(HexColor('#ffffff'))
     c.setFont("Helvetica-Bold", 13)
     c.drawString(margin + 4 * mm, y - 6.5 * mm, "Net Pay")
-    c.drawRightString(width - margin - 4 * mm, y - 6.5 * mm, f"PKR {payroll.net_pay:,.2f}")
+    c.drawRightString(width - margin - 4 * mm, y - 6.5 * mm, f"PKR {payroll.net_pay:,.0f}")
 
     c.setFont("Helvetica-Oblique", 8)
     c.setFillColor(GRAY)

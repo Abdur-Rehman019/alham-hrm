@@ -8,7 +8,7 @@ class IncentiveRuleForm(forms.ModelForm):
         fields = ['destination_country', 'amount']
         widgets = {
             'destination_country': forms.TextInput(attrs={'class': 'form-control'}),
-            'amount': forms.NumberInput(attrs={'class': 'form-control'}),
+            'amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '1'}),
         }
 
 

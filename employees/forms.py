@@ -17,7 +17,7 @@ class EmployeeForm(forms.ModelForm):
             'name': forms.TextInput(attrs={'class': 'form-control'}),
             'cnic': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '12345-1234567-1'}),
             'role': forms.Select(attrs={'class': 'form-select'}),
-            'monthly_salary': forms.NumberInput(attrs={'class': 'form-control'}),
+            'monthly_salary': forms.NumberInput(attrs={'class': 'form-control', 'step': '1'}),
             'phone': forms.TextInput(attrs={'class': 'form-control'}),
             'email': forms.EmailInput(attrs={'class': 'form-control'}),
             'address': forms.TextInput(attrs={'class': 'form-control'}),

@@ -6,6 +6,7 @@ from unittest import mock
 
 from django.contrib.auth.models import User
 from django.core import mail
+from django.core.exceptions import ValidationError
 from django.test import override_settings
 from django.utils import timezone
 
@@ -20,16 +21,16 @@ class PayrollWorkflowTests(TestCase):
     def setUp(self):
         self.admin = User.objects.create_superuser('payroll-admin', 'admin@example.com', 'StrongPass!123')
         self.employee = Employee.objects.create(
-            name='Salary Employee', role='counselor', monthly_salary='30000.00',
+            name='Salary Employee', role='counselor', monthly_salary='30000',
             joined_on=timezone.localdate(), email='personal@example.com',
         )
         self.client.force_login(self.admin)
 
-    def test_compute_payroll_uses_decimal_and_generating_page_agrees(self):
+    def test_compute_payroll_uses_whole_rupees_and_generating_page_agrees(self):
         today = timezone.localdate()
         result = compute_payroll(self.employee, today.year, today.month)
         self.assertIsInstance(result.net_pay, Decimal)
-        self.assertEqual(result.net_pay.as_tuple().exponent, -2)
+        self.assertEqual(result.net_pay.as_tuple().exponent, 0)
         response = self.client.post('/payroll/generate/', {
             'employee_id': self.employee.pk, 'month': today.month, 'year': today.year,
         })
@@ -39,10 +40,24 @@ class PayrollWorkflowTests(TestCase):
             (saved.base_salary, saved.leave_deduction, saved.incentive_total, saved.net_pay),
             (result.base_salary, result.leave_deduction, result.incentive_total, result.net_pay),
         )
+        page = self.client.get(
+            f'/payroll/generate/?month={today.month}&year={today.year}'
+        )
+        self.assertContains(page, 'PKR 30000')
+        self.assertNotContains(page, '30,000.00')
 
-    def test_money_rounding_is_decimal_half_up_to_two_places(self):
-        self.assertEqual(_money(Decimal('1.005')), Decimal('1.01'))
-        self.assertEqual(_money(Decimal('1.004')), Decimal('1.00'))
+    def test_money_rounding_is_half_up_to_whole_rupees(self):
+        self.assertEqual(_money(Decimal('1.5')), Decimal('2'))
+        self.assertEqual(_money(Decimal('1.4')), Decimal('1'))
+        self.assertEqual(_money(Decimal('-1.5')), Decimal('-2'))
+
+    def test_employee_salary_rejects_decimal_rupees(self):
+        employee = Employee(
+            name='Decimal Salary', role='counselor', monthly_salary='30000.50',
+            joined_on=timezone.localdate(),
+        )
+        with self.assertRaises(ValidationError):
+            employee.full_clean()
 
     def test_absence_reduces_payroll_using_calendar_day_rate(self):
         today = timezone.localdate()
@@ -52,7 +67,7 @@ class PayrollWorkflowTests(TestCase):
         DailyAttendance.objects.create(employee=self.employee, date=first, status='absent')
         with mock.patch('django.utils.timezone.localdate', return_value=first + datetime.timedelta(days=1)):
             result = compute_payroll(self.employee, first.year, first.month)
-        expected = (Decimal('30000') / Decimal(calendar.monthrange(first.year, first.month)[1])).quantize(Decimal('.01'))
+        expected = (Decimal('30000') / Decimal(calendar.monthrange(first.year, first.month)[1])).quantize(Decimal('1'))
         self.assertEqual(result.leave_deduction, expected)
 
     def test_incentive_rule_backfills_only_zero_unpaid_enrollments_case_insensitively(self):
@@ -73,9 +88,9 @@ class PayrollWorkflowTests(TestCase):
         missing.refresh_from_db()
         paid.refresh_from_db()
         fixed.refresh_from_db()
-        self.assertEqual(missing.incentive_amount, Decimal('1250.50'))
-        self.assertEqual(paid.incentive_amount, Decimal('0.00'))
-        self.assertEqual(fixed.incentive_amount, Decimal('500.00'))
+        self.assertEqual(missing.incentive_amount, Decimal('1251'))
+        self.assertEqual(paid.incentive_amount, Decimal('0'))
+        self.assertEqual(fixed.incentive_amount, Decimal('500'))
 
     @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
     def test_email_attachment_and_login_email_preference(self):
@@ -92,12 +107,29 @@ class PayrollWorkflowTests(TestCase):
         self.assertTrue(message.attachments[0][0].endswith('.pdf'))
         self.assertTrue(message.attachments[0][2] == 'application/pdf')
         self.assertTrue(message.attachments[0][1].startswith(b'%PDF'))
+        self.assertIn('Net pay: PKR 30,000', message.body)
+        self.assertNotIn('.00', message.body)
         attempt = payroll.email_attempts.get()
         self.assertTrue(attempt.success)
         self.assertEqual(attempt.recipient, 'login@example.com')
         payroll.refresh_from_db()
         self.assertTrue(payroll.is_approved)
         self.assertEqual(payroll.approved_by, self.admin)
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.console.EmailBackend')
+    def test_console_email_backend_is_not_reported_as_delivered(self):
+        today = timezone.localdate()
+        payroll, _ = _calculate_and_save_payroll(self.employee, today.year, today.month)
+
+        with mock.patch('payroll.views.EmailMessage.send') as send:
+            response = self.client.post(f'/payroll/payslip/{payroll.pk}/approve/')
+
+        self.assertEqual(response.status_code, 302)
+        send.assert_not_called()
+        attempt = payroll.email_attempts.get()
+        self.assertFalse(attempt.success)
+        self.assertIn('only prints messages', attempt.error)
+        self.assertIn('configure an SMTP', attempt.error)
 
     @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
     def test_missing_email_and_outdated_payroll_are_logged_and_not_sent(self):
@@ -158,7 +190,7 @@ class PayrollWorkflowTests(TestCase):
         payroll.approved_at = timezone.now()
         payroll.approved_by = self.admin
         payroll.save()
-        self.employee.monthly_salary = Decimal('32000.00')
+        self.employee.monthly_salary = Decimal('32000')
         self.employee.save()
         payroll, created = _calculate_and_save_payroll(self.employee, today.year, today.month)
         self.assertFalse(created)

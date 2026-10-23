@@ -1,4 +1,5 @@
 import datetime
+from decimal import Decimal, InvalidOperation
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
@@ -29,7 +30,7 @@ class Employee(models.Model):
     cnic = models.CharField(max_length=15, blank=True, null=True, unique=True, validators=[cnic_validator])
     date_of_birth = models.DateField(blank=True, null=True)
     role = models.CharField(max_length=30, choices=ROLE_CHOICES)
-    monthly_salary = models.DecimalField(max_digits=10, decimal_places=2)
+    monthly_salary = models.DecimalField(max_digits=10, decimal_places=0)
     phone = models.CharField(max_length=20, blank=True, validators=[phone_validator])
     email = models.EmailField(blank=True, unique=True, null=True)
     address = models.CharField(max_length=255, blank=True)
@@ -53,8 +54,13 @@ class Employee(models.Model):
         elif any(char.isdigit() for char in self.name):
             errors['name'] = 'Name cannot contain numbers.'
 
-        if self.monthly_salary is not None and self.monthly_salary <= 0:
-            errors['monthly_salary'] = 'Salary must be greater than zero.'
+        if self.monthly_salary is not None:
+            try:
+                salary = Decimal(str(self.monthly_salary))
+            except (InvalidOperation, TypeError, ValueError):
+                salary = None
+            if salary is not None and salary <= 0:
+                errors['monthly_salary'] = 'Salary must be greater than zero.'
 
         if self.joined_on:
             if self.joined_on > today:

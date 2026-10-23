@@ -53,10 +53,10 @@
           {% for p in payrolls %}
           <tr>
             <td class="ps-3">{{ p.employee.name }}</td>
-            <td>PKR {{ p.base_salary }}</td>
-            <td class="text-danger">-PKR {{ p.leave_deduction }}</td>
-            <td class="text-success">+PKR {{ p.incentive_total }}</td>
-            <td class="fw-semibold">PKR {{ p.net_pay }}</td>
+            <td>PKR {{ p.base_salary|floatformat:0 }}</td>
+            <td class="text-danger">-PKR {{ p.leave_deduction|floatformat:0 }}</td>
+            <td class="text-success">+PKR {{ p.incentive_total|floatformat:0 }}</td>
+            <td class="fw-semibold">PKR {{ p.net_pay|floatformat:0 }}</td>
             <td>{% if p.is_outdated %}<span class="badge bg-warning text-dark">Outdated</span><div class="small text-muted">Regenerate payroll before approval.</div>{% else %}<span class="badge {% if p.latest_attempt.success %}bg-success{% elif p.latest_attempt %}bg-danger{% elif p.is_approved %}bg-info text-dark{% else %}bg-secondary{% endif %}">{{ p.email_status }}</span>{% if p.latest_attempt.error %}<div class="small text-muted">{{ p.latest_attempt.error }}</div>{% endif %}{% endif %}
               {% if p.is_approved and p.approved_by %}<div class="small text-muted">Approved by {{ p.approved_by.username }}{% if p.approved_at %} · {{ p.approved_at|date:"d M Y, g:i A" }}{% endif %}</div>{% endif %}
             </td>

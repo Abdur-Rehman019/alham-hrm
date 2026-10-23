@@ -28,7 +28,7 @@
           {% for rule in rules %}
           <tr>
             <td class="ps-3">{{ rule.destination_country }}</td>
-            <td>PKR {{ rule.amount }}</td>
+            <td>PKR {{ rule.amount|floatformat:0 }}</td>
             <td class="pe-3">
               <a href="?edit={{ rule.pk }}" class="small">Edit</a>
               | <form method="post" action="{% url 'incentive_rule_delete' rule.pk %}" class="d-inline" onsubmit="return confirm('Remove the rule for {{ rule.destination_country }}?');">{% csrf_token %}<button class="btn btn-link btn-sm text-danger p-0">Delete</button></form>

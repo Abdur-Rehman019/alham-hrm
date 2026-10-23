@@ -18,7 +18,7 @@
         <div><h6 class="fw-bold mb-0">{{ employee.name }}</h6><span class="text-muted small">{{ employee.employee_id }}</span></div>
       </div>
       <p class="mb-1 small"><strong>Role:</strong> {{ employee.get_role_display }}</p>
-      <p class="mb-1 small"><strong>Monthly salary:</strong> PKR {{ employee.monthly_salary }}</p>
+      <p class="mb-1 small"><strong>Monthly salary:</strong> PKR {{ employee.monthly_salary|floatformat:0 }}</p>
       <p class="mb-1 small"><strong>CNIC:</strong> {{ employee.cnic|default:"-" }}</p>
       <p class="mb-1 small"><strong>Phone:</strong> {{ employee.phone|default:"-" }}</p>
       <p class="mb-1 small"><strong>Email:</strong> {{ employee.email|default:"-" }}</p>
@@ -43,7 +43,7 @@
       <div class="col-sm-6 col-xl-4"><div class="card stat-card"><div class="label">Absent</div><div class="value {% if summary.absent %}text-danger{% endif %}">{{ summary.absent }}</div></div></div>
       <div class="col-sm-6 col-xl-4"><div class="card stat-card"><div class="label">Leaves used</div><div class="value">{{ leaves_used }} / {{ free_leaves }} free</div>{% if leaves_deducted %}<div class="small text-danger">{{ leaves_deducted }} deducted</div>{% endif %}</div></div>
       <div class="col-sm-6 col-xl-4"><div class="card stat-card"><div class="label">Enrollments</div><div class="value">{{ month_enrollments|length }}</div></div></div>
-      <div class="col-sm-6 col-xl-4"><div class="card stat-card"><div class="label">Incentives</div><div class="value">PKR {{ month_incentive }}</div></div></div>
+      <div class="col-sm-6 col-xl-4"><div class="card stat-card"><div class="label">Incentives</div><div class="value">PKR {{ month_incentive|floatformat:0 }}</div></div></div>
     </div>
     {% if summary.needs_review %}<div class="alert alert-warning small mt-3 mb-0"><i class="bi bi-flag-fill"></i> {{ summary.needs_review }} attendance entr{{ summary.needs_review|pluralize:"y,ies" }} this month still need review. <a href="{% url 'attendance_review' %}">Review now</a></div>{% endif %}
     {% if summary.avg_checkin %}<p class="text-muted small mt-3 mb-0">Average check-in time in {{ period_label }}: <strong>{{ summary.avg_checkin }}</strong>{% if summary.late %} &middot; {{ summary.late }} marked late{% endif %}</p>{% endif %}
@@ -74,7 +74,7 @@
   <div class="col-lg-6"><div class="card p-3"><h6 class="fw-semibold mb-3">Students enrolled, {{ period_label }}</h6>
     <div class="table-responsive"><table class="table table-sm mb-0">
       <thead><tr><th>Student</th><th>Country</th><th>Date</th><th>Incentive</th></tr></thead><tbody>
-      {% for e in month_enrollments %}<tr><td>{{ e.student_name }}</td><td>{{ e.destination_country }}</td><td>{{ e.confirmed_on|date:"d M" }}</td><td>PKR {{ e.incentive_amount }}</td></tr>
+      {% for e in month_enrollments %}<tr><td>{{ e.student_name }}</td><td>{{ e.destination_country }}</td><td>{{ e.confirmed_on|date:"d M" }}</td><td>PKR {{ e.incentive_amount|floatformat:0 }}</td></tr>
       {% empty %}<tr><td colspan="4" class="text-center text-muted py-3">No enrollments this month.</td></tr>{% endfor %}</tbody></table></div></div></div>
   <div class="col-lg-6"><div class="card p-3"><h6 class="fw-semibold mb-3">Leave requests</h6>
     <div class="table-responsive"><table class="table table-sm mb-0">
@@ -84,7 +84,7 @@
   <div class="col-lg-6"><div class="card p-3"><h6 class="fw-semibold mb-3">Payslips</h6>
     <div class="table-responsive"><table class="table table-sm mb-0">
       <thead><tr><th>Period</th><th>Net pay</th><th></th></tr></thead><tbody>
-      {% for p in payrolls %}<tr><td>{{ p.month }}/{{ p.year }}</td><td>PKR {{ p.net_pay }}</td><td><a href="{% url 'payslip_pdf' p.pk %}" class="small">Download</a></td></tr>
+      {% for p in payrolls %}<tr><td>{{ p.month }}/{{ p.year }}</td><td>PKR {{ p.net_pay|floatformat:0 }}</td><td><a href="{% url 'payslip_pdf' p.pk %}" class="small">Download</a></td></tr>
       {% empty %}<tr><td colspan="3" class="text-center text-muted py-3">No payroll generated yet.</td></tr>{% endfor %}</tbody></table></div></div></div>
 </div>
 {% endblock %}

@@ -33,6 +33,7 @@
   }
   .sidebar .brand img {
     max-height: 40px;
+    max-width: 190px;
     width: auto;
     object-fit: contain;
   }
@@ -95,7 +96,7 @@
 {% if user.is_authenticated %}
 <nav class="sidebar">
   <a href="{% if user.is_staff or user.is_superuser %}{% url 'dashboard_home' %}{% else %}{% url 'portal_dashboard' %}{% endif %}" class="brand">
-    <img src="{% static 'images/logo.png' %}" alt="ALHAM HRM Logo">
+    <img src="{% static 'images/logo.svg' %}" alt="ALHAM HRM Logo">
   </a>
 
   {% if user.is_staff or user.is_superuser %}

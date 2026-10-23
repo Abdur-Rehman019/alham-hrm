@@ -30,7 +30,7 @@
       <td class="ps-3">{{ emp.employee_id }}</td>
       <td><a href="{% url 'employee_detail' emp.pk %}" class="fw-semibold text-decoration-none">{{ emp.name }}</a></td>
       <td><span class="badge badge-role">{{ emp.get_role_display }}</span></td>
-      <td>PKR {{ emp.monthly_salary }}</td>
+      <td>PKR {{ emp.monthly_salary|floatformat:0 }}</td>
       <td>{{ emp.joined_on }}</td>
       <td>
         {% if emp.is_active %}<span class="badge bg-success">Active</span>

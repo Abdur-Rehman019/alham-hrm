@@ -6,7 +6,7 @@ ALHAM HRM is the staff, attendance, enrollment, and payroll system for ALHAM Ove
 
 - Python 3.13 (the project is tested with Django 6.x)
 - Git
-- A local SMTP test account only if you want to test real delivery; the default local email backend prints messages to the console
+- An SMTP account if you want payslips delivered by email; the default local console backend does not deliver mail
 
 ## Local setup
 
@@ -25,6 +25,20 @@ SECRET_KEY=replace-with-a-long-random-secret
 DEBUG=True
 ALLOWED_HOSTS=127.0.0.1,localhost
 ```
+
+To test actual payslip delivery locally, also configure your SMTP provider in `.env`:
+
+```dotenv
+EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+EMAIL_HOST=smtp.example.com
+EMAIL_PORT=587
+EMAIL_HOST_USER=your-smtp-username
+EMAIL_HOST_PASSWORD=your-smtp-password
+EMAIL_USE_TLS=True
+DEFAULT_FROM_EMAIL=ALHAM HRM <verified-sender@example.com>
+```
+
+Use the provider's SMTP credentials (for Gmail, an app password with 2-Step Verification enabled), not an ordinary mailbox password. Never commit these values or share them in chat. Without SMTP configuration, the app now records a failed email attempt and tells the administrator that the console backend cannot deliver the payslip. An SMTP server accepting the message does not guarantee inbox delivery; check the recipient address, spam folder, and provider delivery logs.
 
 For example, generate a secret with `python -c "import secrets; print(secrets.token_urlsafe(48))"` and paste the result into `.env`. The local database defaults to `db.sqlite3`. Prepare the database and run the development server:
 
@@ -72,7 +86,7 @@ Railway may restrict outbound SMTP on lower-tier plans. First verify Railway's c
 - Approved leave beyond the monthly allowance is deducted using monthly salary divided by the calendar days in that month.
 - Unexplained absent working days are also deducted at the same calendar-day rate. Today is not counted as absent until the day ends.
 - Salary is not prorated in join or leave months; the full monthly base is used.
-- Net pay is base salary minus leave and absence deductions plus incentives.
+- Salary, deductions, incentives, and net pay are rounded half-up to whole PKR rupees; decimals are not accepted or displayed.
 - Enrollment incentives are assigned from the destination-country rule and belong to the month of `confirmed_on`. Adding a missing rule backfills zero-valued, unpaid enrollments for that country; non-zero or already-paid amounts are preserved.
 - Employees only see their own attendance, leave, enrollment, and salary data. They cannot download payslips or trigger payroll email.
 

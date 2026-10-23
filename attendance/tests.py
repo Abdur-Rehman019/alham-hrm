@@ -14,11 +14,11 @@ class EmployeePortalTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user('portal-user', password='StrongPass!123')
         self.employee = Employee.objects.create(
-            name='Portal User', role='counselor', monthly_salary='30000.00',
+            name='Portal User', role='counselor', monthly_salary='30000',
             joined_on=timezone.localdate(), user=self.user,
         )
         self.other = Employee.objects.create(
-            name='Other Employee', role='counselor', monthly_salary='35000.00',
+            name='Other Employee', role='counselor', monthly_salary='35000',
             joined_on=timezone.localdate(),
         )
         self.client.force_login(self.user)
