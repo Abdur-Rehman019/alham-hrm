@@ -46,8 +46,7 @@ AXES_RESET_COOL_OFF_ON_FAILURE_DURING_LOCKOUT = False
 AXES_RESET_ON_SUCCESS = True
 AXES_LOCKOUT_TEMPLATE = 'core/locked_out.html'
 # Behind Railway's proxy every request comes from the proxy, so read the real client IP.
-AXES_IPWARE_PROXY_COUNT = 1
-AXES_IPWARE_META_PRECEDENCE_ORDER = ('HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR')
+AXES_CLIENT_IP_CALLABLE = 'core.middleware.client_ip'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

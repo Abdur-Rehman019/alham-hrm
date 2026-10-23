@@ -143,6 +143,27 @@ class DemoAddressTests(TestCase):
         self.assertEqual(len(mail.outbox), 0)
 
 
+class ClientIpTests(TestCase):
+    def test_last_forwarded_address_wins_so_visitors_cannot_spoof_it(self):
+        from django.test import RequestFactory
+        from axes.helpers import get_client_ip_address
+        from core.middleware import client_ip
+        request = RequestFactory().get('/', HTTP_X_FORWARDED_FOR='6.6.6.6, 203.0.113.7', REMOTE_ADDR='10.0.0.1')
+        self.assertEqual(client_ip(request), '203.0.113.7')
+        self.assertEqual(get_client_ip_address(request), '203.0.113.7')
+        self.assertEqual(client_ip(RequestFactory().get('/', REMOTE_ADDR='10.0.0.1')), '10.0.0.1')
+
+    def test_upload_rejects_non_excel_and_oversized_files(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from imports.forms import ExcelUploadForm
+        fake = SimpleUploadedFile('data.xlsx', b'<html>not excel</html>')
+        self.assertFalse(ExcelUploadForm(files={'file': fake}).is_valid())
+        wrong_type = SimpleUploadedFile('data.exe', b'PK\x03\x04rest')
+        self.assertFalse(ExcelUploadForm(files={'file': wrong_type}).is_valid())
+        big = SimpleUploadedFile('data.xlsx', b'PK\x03\x04' + b'0' * (6 * 1024 * 1024))
+        self.assertFalse(ExcelUploadForm(files={'file': big}).is_valid())
+
+
 class BrevoBackendTests(TestCase):
     @override_settings(EMAIL_BACKEND='core.email.BrevoEmailBackend', BREVO_API_KEY='test-key',
                        DEFAULT_FROM_EMAIL='ALHAM HRM <hr@alham.pk>')

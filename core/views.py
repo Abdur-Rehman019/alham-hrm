@@ -15,7 +15,7 @@ from django.urls import reverse_lazy
 from employees.models import Employee
 from .email import email_problem
 from .forms import EmployeePasswordResetForm
-from .middleware import is_admin_user
+from .middleware import client_ip, is_admin_user
 
 logger = logging.getLogger(__name__)
 RESET_REQUESTS_PER_HOUR = 5
@@ -30,11 +30,6 @@ def healthz(request):
         logger.exception('Health check: database unavailable')
         return JsonResponse({'status': 'database unavailable'}, status=503)
     return JsonResponse({'status': 'ok'})
-
-
-def _client_ip(request):
-    forwarded = request.META.get('HTTP_X_FORWARDED_FOR', '')
-    return forwarded.split(',')[0].strip() or request.META.get('REMOTE_ADDR', '')
 
 
 class PasswordResetView(auth_views.PasswordResetView):
@@ -56,7 +51,7 @@ class PasswordResetView(auth_views.PasswordResetView):
             form.add_error(None, 'Password reset by email is not available yet. Please ask HR to reset your password.')
             return self.form_invalid(form)
 
-        key = f'password-reset:{_client_ip(self.request)}'
+        key = f'password-reset:{client_ip(self.request)}'
         attempts = cache.get(key, 0)
         if attempts >= RESET_REQUESTS_PER_HOUR:
             form.add_error(None, 'Too many reset requests. Please wait an hour and try again.')

@@ -12,6 +12,15 @@ COUNSELOR_ALLOWED_URL_NAMES = {
 FORCED_CHANGE_ALLOWED_URL_NAMES = {'change_password', 'logout'}
 
 
+def client_ip(request):
+    """
+    The visitor's real IP behind Railway's proxy. The proxy appends the address it saw to
+    X-Forwarded-For, so the last entry is trustworthy; earlier entries can be typed by the visitor.
+    """
+    forwarded = [part.strip() for part in request.META.get('HTTP_X_FORWARDED_FOR', '').split(',') if part.strip()]
+    return forwarded[-1] if forwarded else request.META.get('REMOTE_ADDR', '')
+
+
 def is_admin_user(user):
     return user.is_authenticated and (user.is_superuser or user.is_staff)
 
