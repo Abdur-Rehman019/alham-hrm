@@ -43,8 +43,12 @@
 
   <div class="col-md-8">
     <div class="card">
+      <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
+        <span class="fw-semibold">Payroll for {{ period_label }}</span>
+        <span class="small text-muted">Approve each row to send its payslip.</span>
+      </div>
       <table class="table mb-0">
-        <thead><tr><th class="ps-3">Employee</th><th>Base</th><th>Leave Deduction</th><th>Incentives</th><th>Net Pay</th><th class="pe-3"></th></tr></thead>
+        <thead><tr><th class="ps-3">Employee</th><th>Base</th><th>Leave and absence deduction</th><th>Incentives</th><th>Net Pay</th><th>Approval / email</th><th class="pe-3"></th></tr></thead>
         <tbody>
           {% for p in payrolls %}
           <tr>
@@ -53,10 +57,20 @@
             <td class="text-danger">-PKR {{ p.leave_deduction }}</td>
             <td class="text-success">+PKR {{ p.incentive_total }}</td>
             <td class="fw-semibold">PKR {{ p.net_pay }}</td>
-            <td class="pe-3"><a href="{% url 'payslip_pdf' p.pk %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-download"></i> Payslip</a></td>
+            <td>{% if p.is_outdated %}<span class="badge bg-warning text-dark">Outdated</span><div class="small text-muted">Regenerate payroll before approval.</div>{% else %}<span class="badge {% if p.latest_attempt.success %}bg-success{% elif p.latest_attempt %}bg-danger{% elif p.is_approved %}bg-info text-dark{% else %}bg-secondary{% endif %}">{{ p.email_status }}</span>{% if p.latest_attempt.error %}<div class="small text-muted">{{ p.latest_attempt.error }}</div>{% endif %}{% endif %}
+              {% if p.is_approved and p.approved_by %}<div class="small text-muted">Approved by {{ p.approved_by.username }}{% if p.approved_at %} · {{ p.approved_at|date:"d M Y, g:i A" }}{% endif %}</div>{% endif %}
+            </td>
+            <td class="pe-3 text-nowrap">
+              <a href="{% url 'payslip_pdf' p.pk %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-download"></i> PDF</a>
+              {% if p.is_approved %}
+                <form method="post" action="{% url 'payslip_email_send' p.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-outline-primary" {% if p.is_outdated %}disabled title="Regenerate payroll before sending"{% endif %}><i class="bi bi-envelope"></i> Resend</button></form>
+              {% else %}
+                <form method="post" action="{% url 'payroll_approve' p.pk %}" class="d-inline" onsubmit="return confirm('Approve this payroll and email its payslip to the employee?');">{% csrf_token %}<button class="btn btn-sm btn-primary" {% if p.is_outdated %}disabled title="Regenerate payroll before approval"{% endif %}><i class="bi bi-check-circle"></i> Approve &amp; email</button></form>
+              {% endif %}
+            </td>
           </tr>
           {% empty %}
-          <tr><td colspan="6" class="text-center text-muted py-4">No payroll generated for this period yet.</td></tr>
+          <tr><td colspan="7" class="text-center text-muted py-4">No payroll generated for this period yet.</td></tr>
           {% endfor %}
         </tbody>
       </table>

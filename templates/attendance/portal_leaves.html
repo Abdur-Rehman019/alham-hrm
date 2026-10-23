@@ -1,0 +1,14 @@
+{% extends 'core/base.html' %}
+{% block page_title %}Leaves{% endblock %}
+{% block content %}
+{% if not employee %}<div class="alert alert-danger">Your account is not linked to an employee record.</div>{% else %}
+<div class="row g-3 mb-3"><div class="col-md-4"><div class="card stat-card"><div class="label">Leaves taken this month</div><div class="value">{{ leaves_this_month }}</div></div></div><div class="col-md-8"><div class="card p-3"><h6>Upcoming approved leave</h6>{% for leave in upcoming_leave %}<span class="badge bg-warning text-dark me-1">{{ leave.date|date:"D, d M Y" }}</span>{% empty %}<span class="text-muted">No upcoming approved leave.</span>{% endfor %}</div></div></div>
+<div class="row g-3"><div class="col-lg-4"><div class="card p-3"><h6 class="fw-semibold">Request leave</h6><form method="post">{% csrf_token %}
+{% for field in form %}<div class="mb-3"><label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}</div>{% endfor %}
+<button class="btn btn-primary w-100">Send request</button></form></div></div>
+<div class="col-lg-8"><div class="card p-3"><h6 class="fw-semibold">Request history</h6><div class="table-responsive"><table class="table table-sm"><thead><tr><th>Date</th><th>Reason</th><th>Status</th><th></th></tr></thead><tbody>
+{% for item in leave_requests %}<tr><td>{{ item.date|date:"D, d M Y" }}</td><td>{{ item.reason }}{% if item.decision_note %}<div class="small text-muted">{{ item.decision_note }}</div>{% endif %}</td><td>{{ item.get_status_display }}</td><td>{% if item.status == 'pending' %}<form method="post" action="{% url 'leave_request_cancel' item.pk %}">{% csrf_token %}<button class="btn btn-sm btn-outline-danger">Cancel</button></form>{% endif %}</td></tr>
+{% empty %}<tr><td colspan="4" class="text-muted text-center">No leave requests yet.</td></tr>{% endfor %}</tbody></table></div></div></div>
+<div class="col-12"><div class="card p-3"><h6 class="fw-semibold">Past approved leave</h6>{% for leave in past_leave %}<span class="badge bg-secondary me-1">{{ leave.date|date:"D, d M Y" }}</span>{% empty %}<span class="text-muted">No past leave.</span>{% endfor %}</div></div></div>
+{% endif %}
+{% endblock %}

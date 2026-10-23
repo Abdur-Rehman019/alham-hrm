@@ -30,7 +30,7 @@
       {% if employee.user %}
         <div class="alert alert-success py-2 small mb-2">Login: <strong>{{ employee.user.username }}</strong>{% if employee.must_change_password %}<br><span class="text-muted">Has not set their own password yet.</span>{% endif %}</div>
         <form method="post" action="{% url 'employee_reset_password' employee.pk %}" class="mb-2" onsubmit="return confirm('Issue a new temporary password for {{ employee.name }}?');">{% csrf_token %}<button class="btn btn-sm btn-outline-secondary w-100"><i class="bi bi-key-fill"></i> Reset password</button></form>
-        <a href="{% url 'employee_remove_login' employee.pk %}" class="btn btn-sm btn-outline-danger w-100" onclick="return confirm('Remove login access for {{ employee.name }}?');">Remove login access</a>
+        <form method="post" action="{% url 'employee_remove_login' employee.pk %}" onsubmit="return confirm('Remove login access for {{ employee.name }}?');">{% csrf_token %}<button class="btn btn-sm btn-outline-danger w-100">Remove login access</button></form>
       {% elif employee.is_active %}
         <a href="{% url 'employee_create_login' employee.pk %}" class="btn btn-sm btn-outline-secondary w-100"><i class="bi bi-key-fill"></i> Create login</a>
       {% endif %}

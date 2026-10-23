@@ -94,7 +94,7 @@
 <body>
 {% if user.is_authenticated %}
 <nav class="sidebar">
-  <a href="{% url 'dashboard_home' %}" class="brand">
+  <a href="{% if user.is_staff or user.is_superuser %}{% url 'dashboard_home' %}{% else %}{% url 'portal_dashboard' %}{% endif %}" class="brand">
     <img src="{% static 'images/logo.png' %}" alt="ALHAM HRM Logo">
   </a>
 
@@ -130,7 +130,12 @@
     </form>
   </div>
   {% else %}
-  <a href="{% url 'self_attendance' %}" class="active"><i class="bi bi-speedometer2"></i> My Portal</a>
+  <div class="nav-section-label">Employee portal</div>
+  <a href="{% url 'portal_dashboard' %}" class="{% if request.resolver_match.url_name == 'portal_dashboard' %}active{% endif %}"><i class="bi bi-grid-1x2-fill"></i> Dashboard</a>
+  <a href="{% url 'portal_attendance' %}" class="{% if request.resolver_match.url_name == 'portal_attendance' %}active{% endif %}"><i class="bi bi-calendar-check-fill"></i> Attendance</a>
+  <a href="{% url 'portal_leaves' %}" class="{% if request.resolver_match.url_name == 'portal_leaves' %}active{% endif %}"><i class="bi bi-envelope-paper-fill"></i> Leaves</a>
+  <a href="{% url 'portal_enrollments' %}" class="{% if request.resolver_match.url_name == 'portal_enrollments' %}active{% endif %}"><i class="bi bi-mortarboard-fill"></i> Enrollments</a>
+  <a href="{% url 'portal_salary' %}" class="{% if request.resolver_match.url_name == 'portal_salary' %}active{% endif %}"><i class="bi bi-cash-coin"></i> Salary</a>
   <a href="{% url 'change_password' %}" class="{% if request.resolver_match.url_name == 'change_password' %}active{% endif %}"><i class="bi bi-shield-lock-fill"></i> Change password</a>
   <div class="sidebar-footer">
     <form method="post" action="{% url 'logout' %}" class="m-0">

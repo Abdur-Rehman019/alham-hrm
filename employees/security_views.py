@@ -96,10 +96,7 @@ def employee_reset_password(request, pk):
     user.set_password(temp)
     user.save()
     Employee.objects.filter(pk=employee.pk).update(must_change_password=True)
-    try:
-        from axes.utils import reset
-        reset(username=user.username)
-    except Exception:
-        pass
+    from axes.utils import reset
+    reset(username=user.username)
     # Rendered directly (not stored in a cookie/session) so it is shown exactly once.
     return render(request, 'employees/employee_temp_password.html', {'employee': employee, 'username': user.username, 'temp': temp})

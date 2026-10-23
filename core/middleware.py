@@ -3,7 +3,8 @@ from django.shortcuts import redirect
 
 # Everything an employee (non-admin) account may reach. All other pages redirect back to the portal.
 COUNSELOR_ALLOWED_URL_NAMES = {
-    'post_login_redirect', 'self_attendance', 'my_payslip_pdf', 'leave_request_cancel',
+    'post_login_redirect', 'portal_dashboard', 'portal_attendance', 'portal_leaves',
+    'portal_enrollments', 'portal_salary', 'leave_request_cancel',
     'change_password', 'logout',
     'password_reset', 'password_reset_done', 'password_reset_confirm', 'password_reset_complete',
 }
@@ -42,6 +43,6 @@ class RoleAccessMiddleware:
             return redirect('change_password')
 
         if not is_admin_user(user) and url_name not in COUNSELOR_ALLOWED_URL_NAMES:
-            messages.info(request, "Your account only has access to your own attendance portal.")
-            return redirect('self_attendance')
+            messages.info(request, "Your account only has access to your own employee portal.")
+            return redirect('portal_dashboard')
         return None

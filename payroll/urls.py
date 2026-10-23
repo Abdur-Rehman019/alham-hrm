@@ -8,5 +8,6 @@ urlpatterns = [
     path('enrollments/add/', views.enrollment_add, name='enrollment_add'),
     path('generate/', views.payroll_generate, name='payroll_generate'),
     path('payslip/<int:pk>/', views.payslip_pdf, name='payslip_pdf'),
-    
+    path('payslip/<int:pk>/approve/', views.payroll_approve, name='payroll_approve'),
+    path('payslip/<int:pk>/email/', views.payslip_email_send, name='payslip_email_send'),
 ]

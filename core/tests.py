@@ -51,11 +51,11 @@ class SecurityTests(Base):
     def test_employee_locked_to_portal(self):
         for url in ['/', '/employees/', '/payroll/generate/', '/attendance/', '/attendance/leave-requests/', '/imports/enrollments/']:
             r = self.ana_c.get(url)
-            self.assertRedirects(r, '/attendance/my-attendance/', fetch_redirect_response=False, msg_prefix=url)
+            self.assertRedirects(r, '/attendance/portal/', fetch_redirect_response=False, msg_prefix=url)
 
     def test_forced_password_change(self):
         Employee.objects.filter(pk=self.ana.pk).update(must_change_password=True)
-        r = self.ana_c.get('/attendance/my-attendance/')
+        r = self.ana_c.get('/attendance/portal/')
         self.assertRedirects(r, '/accounts/change-password/', fetch_redirect_response=False)
         # same password is refused
         r = self.ana_c.post('/accounts/change-password/', {'old_password': PW, 'new_password1': PW, 'new_password2': PW})
@@ -70,7 +70,7 @@ class SecurityTests(Base):
         self.assertEqual(r.status_code, 302)
         self.ana.refresh_from_db()
         self.assertFalse(self.ana.must_change_password)
-        self.assertEqual(self.ana_c.get('/attendance/my-attendance/').status_code, 200)
+        self.assertEqual(self.ana_c.get('/attendance/portal/').status_code, 200)
 
     def test_create_login_flags_must_change_and_blocks_inactive(self):
         carl = make_employee('Carl Raza')
@@ -100,7 +100,7 @@ class SecurityTests(Base):
         self.assertEqual(self.client_admin.get(f'/employees/{self.ana.pk}/reset-password/').status_code, 405)
 
     def test_employee_cannot_reset_or_approve(self):
-        self.assertRedirects(self.ana_c.post(f'/employees/{self.bob.pk}/reset-password/'), '/attendance/my-attendance/', fetch_redirect_response=False)
+        self.assertRedirects(self.ana_c.post(f'/employees/{self.bob.pk}/reset-password/'), '/attendance/portal/', fetch_redirect_response=False)
         lr = LeaveRequest.objects.create(employee=self.bob, date=next_weekday(0), reason='x y z')
         self.ana_c.post(f'/attendance/leave-requests/{lr.pk}/approve/')
         lr.refresh_from_db()
@@ -111,19 +111,17 @@ class SecurityTests(Base):
         self.assertEqual(self.client_admin.get(f'/attendance/leave-requests/{lr.pk}/approve/').status_code, 405)
         self.assertEqual(self.client_admin.get(f'/attendance/leave-requests/{lr.pk}/reject/').status_code, 405)
 
-    def test_payslip_ownership(self):
+    def test_employees_cannot_download_payslips(self):
         p_ana = Payroll.objects.create(employee=self.ana, month=1, year=2026, base_salary=30000)
-        p_bob = Payroll.objects.create(employee=self.bob, month=1, year=2026, base_salary=30000)
         r = self.ana_c.get(f'/attendance/my-payslip/{p_ana.pk}/')
-        self.assertEqual((r.status_code, r['Content-Type']), (200, 'application/pdf'))
-        self.assertEqual(self.ana_c.get(f'/attendance/my-payslip/{p_bob.pk}/').status_code, 404)
-        self.assertRedirects(self.ana_c.get(f'/payroll/payslip/{p_bob.pk}/'), '/attendance/my-attendance/', fetch_redirect_response=False)
+        self.assertEqual(r.status_code, 404)
+        self.assertRedirects(self.ana_c.get(f'/payroll/payslip/{p_ana.pk}/'), '/attendance/portal/', fetch_redirect_response=False)
 
     def test_login_follows_employment_status(self):
-        self.client_admin.get(f'/employees/{self.ana.pk}/deactivate/')
+        self.client_admin.post(f'/employees/{self.ana.pk}/deactivate/')
         self.ana.user.refresh_from_db()
         self.assertFalse(self.ana.user.is_active)
-        self.assertRedirects(self.ana_c.get('/attendance/my-attendance/'), '/accounts/login/?next=/attendance/my-attendance/', fetch_redirect_response=False)
+        self.assertRedirects(self.ana_c.get('/attendance/portal/'), '/accounts/login/?next=/attendance/portal/', fetch_redirect_response=False)
         self.client_admin.post(f'/employees/{self.ana.pk}/terminate/', {'leaving_date': timezone.localdate().isoformat()})
         self.ana.refresh_from_db()
         self.assertFalse(self.ana.is_active)
@@ -148,8 +146,8 @@ class CheckInTests(Base):
         if timezone.localdate().weekday() == 6:
             self.skipTest('Sunday')
         before = timezone.localtime().time().replace(microsecond=0)
-        self.ana_c.post('/attendance/my-attendance/', {'action': 'check_in'})
-        self.ana_c.post('/attendance/my-attendance/', {'action': 'check_in'})
+        self.ana_c.post('/attendance/portal/attendance/', {'action': 'check_in'})
+        self.ana_c.post('/attendance/portal/attendance/', {'action': 'check_in'})
         rows = DailyAttendance.objects.filter(employee=self.ana)
         self.assertEqual(rows.count(), 1)
         t, now = rows.first().check_in_time, timezone.localtime().time()
@@ -159,18 +157,18 @@ class CheckInTests(Base):
     def test_sunday_blocked(self):
         sunday = next_weekday(6)
         with mock.patch('django.utils.timezone.localdate', return_value=sunday):
-            self.ana_c.post('/attendance/my-attendance/', {'action': 'check_in'})
+            self.ana_c.post('/attendance/portal/attendance/', {'action': 'check_in'})
         self.assertFalse(DailyAttendance.objects.filter(employee=self.ana).exists())
 
     def test_inactive_cannot_check_in(self):
         Employee.objects.filter(pk=self.ana.pk).update(is_active=False)
-        self.ana_c.post('/attendance/my-attendance/', {'action': 'check_in'})
+        self.ana_c.post('/attendance/portal/attendance/', {'action': 'check_in'})
         self.assertFalse(DailyAttendance.objects.filter(employee=self.ana).exists())
 
 
 class LeaveFlowTests(Base):
     def req(self, client, day, reason='Family event'):
-        return client.post('/attendance/my-attendance/', {'action': 'request_leave', 'leave_date': day.isoformat(), 'reason': reason})
+        return client.post('/attendance/portal/leaves/', {'date': day.isoformat(), 'reason': reason})
 
     def test_request_validations(self):
         today = timezone.localdate()
@@ -237,7 +235,7 @@ class LeaveFlowTests(Base):
         if today.weekday() == 6:
             self.skipTest('Sunday')
         LeaveRequest.objects.create(employee=self.ana, date=today, reason='maybe')
-        self.ana_c.post('/attendance/my-attendance/', {'action': 'check_in'})
+        self.ana_c.post('/attendance/portal/attendance/', {'action': 'check_in'})
         self.assertEqual(LeaveRequest.objects.get().status, 'cancelled')
 
     def test_admin_added_leave_creates_attendance_row(self):
@@ -335,13 +333,13 @@ class PageSmokeTests(Base):
         for label in ('empty', 'seeded'):
             if label == 'seeded':
                 self.seed()
-            for u in ['/attendance/my-attendance/', '/attendance/my-attendance/?month=1&year=2020', '/attendance/my-attendance/?month=99']:
+            for u in ['/attendance/portal/', '/attendance/portal/attendance/?month=1&year=2020', '/attendance/portal/attendance/?month=99']:
                 self.assertEqual(self.ana_c.get(u).status_code, 200, f'{label} {u}')
 
     def test_user_without_employee_record_is_handled(self):
         stray = User.objects.create_user('stray', password=PW)
         c = self.client_class(); c.force_login(stray)
-        self.assertContains(c.get('/attendance/my-attendance/'), 'not linked')
+        self.assertContains(c.get('/attendance/portal/'), 'not linked')
         self.assertEqual(c.get('/employees/').status_code, 302)
 
     def test_logout_is_post_only(self):

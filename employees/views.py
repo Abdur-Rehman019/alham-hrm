@@ -7,6 +7,7 @@ from django.core.exceptions import ValidationError
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import Sum
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 import json
 from .models import Employee
 from .forms import EmployeeForm, CreateLoginForm
@@ -47,7 +48,7 @@ def employee_detail(request, pk):
     payroll_months = [f"{p.month}/{p.year}" for p in reversed(payrolls)]
     payroll_netpay = [float(p.net_pay) for p in reversed(payrolls)]
 
-    today = timezone.now().date()
+    today = timezone.localdate()
     enrollment_trend_months = []
     enrollment_trend_counts = []
     attendance_trend_present = []
@@ -132,6 +133,7 @@ def employee_edit(request, pk):
 
 @login_required
 @admin_required
+@require_POST
 def employee_deactivate(request, pk):
     employee = get_object_or_404(Employee, pk=pk)
     employee.is_active = False
@@ -145,7 +147,7 @@ def employee_deactivate(request, pk):
 def employee_terminate(request, pk):
     employee = get_object_or_404(Employee, pk=pk)
     if request.method == 'POST':
-        leaving_date = request.POST.get('leaving_date') or timezone.now().date().isoformat()
+        leaving_date = request.POST.get('leaving_date') or timezone.localdate().isoformat()
         employee.leaving_date = leaving_date
         employee.is_active = False
         try:
@@ -182,6 +184,7 @@ def employee_create_login(request, pk):
 
 @login_required
 @admin_required
+@require_POST
 def employee_remove_login(request, pk):
     employee = get_object_or_404(Employee, pk=pk)
     if employee.user:

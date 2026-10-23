@@ -1,10 +1,14 @@
 import os
+import re
 import uuid
 from django.conf import settings
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.shortcuts import render, redirect
 from django.core.exceptions import ValidationError
+from django.views.decorators.http import require_POST
+
+from core.middleware import is_admin_user
 from .forms import ExcelUploadForm
 from .utils import parse_enrollment_workbook, parse_attendance_workbook
 from employees.models import Employee
@@ -12,6 +16,7 @@ from payroll.models import IncentiveRule, StudentEnrollment
 from attendance.models import DailyAttendance, Leave
 
 TEMP_DIR = os.path.join(settings.MEDIA_ROOT, 'import_temp')
+admin_required = user_passes_test(is_admin_user, login_url='login')
 
 
 def _save_temp(uploaded_file):
@@ -29,6 +34,7 @@ def _temp_path(token):
 
 
 @login_required
+@admin_required
 def enrollment_import(request):
     if request.method == 'POST' and 'file' in request.FILES:
         form = ExcelUploadForm(request.POST, request.FILES)
@@ -46,11 +52,13 @@ def enrollment_import(request):
 
 
 @login_required
+@admin_required
+@require_POST
 def enrollment_import_confirm(request):
-    if request.method != 'POST':
-        return redirect('enrollment_import')
-
     token = request.POST.get('token')
+    if not token or re.fullmatch(r'[0-9a-f]{32}', token) is None:
+        messages.error(request, 'Upload session expired, please upload the file again.')
+        return redirect('enrollment_import')
     path = _temp_path(token)
     if not os.path.exists(path):
         messages.error(request, 'Upload session expired, please upload the file again.')
@@ -107,6 +115,7 @@ def enrollment_import_confirm(request):
 
 
 @login_required
+@admin_required
 def attendance_import(request):
     if request.method == 'POST' and 'file' in request.FILES:
         form = ExcelUploadForm(request.POST, request.FILES)
@@ -172,12 +181,15 @@ def attendance_import(request):
 
 
 @login_required
+@admin_required
 def attendance_review(request):
     records = DailyAttendance.objects.filter(status='needs_review').select_related('employee')
     return render(request, 'imports/attendance_review.html', {'records': records})
 
 
 @login_required
+@admin_required
+@require_POST
 def attendance_resolve(request, pk):
     record = DailyAttendance.objects.get(pk=pk)
     if request.method == 'POST':

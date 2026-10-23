@@ -1,12 +1,18 @@
 import calendar
 import random
+import re
+import secrets
 from datetime import date, timedelta
 
-from django.core.management.base import BaseCommand
+from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.core.management.base import BaseCommand, CommandError
+from django.db import connection
 from django.utils import timezone
 
-from employees.models import Employee
 from attendance.models import Leave, DailyAttendance
+from employees.models import Employee
+from payroll.calculations import compute_payroll
 from payroll.models import IncentiveRule, StudentEnrollment, Payroll
 
 
@@ -37,9 +43,8 @@ class Command(BaseCommand):
     help = (
         "Populates realistic demo data across the last 6 months: employees, daily "
         "attendance, leaves, student enrollments, incentives and payroll. "
-        "Intended for a test/demo database, not for mixing into real production data "
-        "you care about, since it adds clearly-named demo employees alongside "
-        "whatever is already there."
+        "Runs only against a local debug SQLite database and never adds data to "
+        "existing employee profiles."
     )
 
     def add_arguments(self, parser):
@@ -47,15 +52,28 @@ class Command(BaseCommand):
             '--months', type=int, default=6,
             help='How many months of history to generate (default 6).'
         )
+        parser.add_argument(
+            '--create-logins', action='store_true',
+            help='Create employee portal logins and print one-time temporary passwords.'
+        )
 
     def handle(self, *args, **options):
         months_back = options['months']
+        if not settings.DEBUG or connection.vendor != 'sqlite':
+            raise CommandError(
+                'Demo data can only be generated with DEBUG=True on a SQLite database.'
+            )
+        if not 1 <= months_back <= 24:
+            raise CommandError('--months must be between 1 and 24.')
+
         random.seed(42)
 
         employees = self._ensure_employees()
         self._ensure_incentive_rules()
+        if options['create_logins']:
+            self._ensure_logins(employees)
 
-        today = timezone.now().date()
+        today = timezone.localdate()
         for i in range(months_back - 1, -1, -1):
             month = today.month - i
             year = today.year
@@ -71,32 +89,60 @@ class Command(BaseCommand):
 
     def _ensure_employees(self):
         employees = []
-        existing_names = set(Employee.objects.values_list('name', flat=True))
         base_date = date(2023, 6, 1)
         for name, role, salary in DEMO_EMPLOYEES:
-            if name in existing_names:
-                employees.append(Employee.objects.get(name=name))
-                continue
-            emp = Employee.objects.create(
-                name=name, role=role, monthly_salary=salary,
-                joined_on=base_date + timedelta(days=random.randint(0, 300)),
-                phone=f"030{random.randint(10000000, 99999999)}",
+            email_slug = re.sub(r'[^a-z0-9]+', '.', name.lower()).strip('.')
+            employee, _ = Employee.objects.get_or_create(
+                email=f"demo.{email_slug}@example.invalid",
+                defaults={
+                    'name': f"Demo - {name}",
+                    'role': role,
+                    'monthly_salary': salary,
+                    'joined_on': base_date + timedelta(days=random.randint(0, 300)),
+                    'phone': f"030{random.randint(10000000, 99999999)}",
+                },
             )
-            employees.append(emp)
-        # Include any real active employees already in the system too
-        for emp in Employee.objects.filter(is_active=True).exclude(pk__in=[e.pk for e in employees]):
-            employees.append(emp)
+            employees.append(employee)
         return employees
+
+    def _ensure_logins(self, employees):
+        user_model = get_user_model()
+        for employee in employees:
+            if employee.user_id:
+                self.stdout.write(f"{employee.name}: already linked to {employee.user.get_username()}")
+                continue
+
+            username_base = f"demo_{re.sub(r'[^a-z0-9]+', '_', employee.name.lower()).strip('_')}"
+            username = username_base
+            suffix = 2
+            while user_model.objects.filter(username=username).exists():
+                username = f"{username_base}_{suffix}"
+                suffix += 1
+
+            temporary_password = secrets.token_urlsafe(14)
+            user = user_model.objects.create_user(
+                username=username,
+                email=employee.email,
+                password=temporary_password,
+            )
+            employee.user = user
+            employee.must_change_password = True
+            employee.save(update_fields=['user', 'must_change_password'])
+            self.stdout.write(
+                self.style.WARNING(
+                    f"{employee.name} login: {username} / {temporary_password} "
+                    "(temporary; change it at first sign-in)"
+                )
+            )
 
     def _ensure_incentive_rules(self):
         for country, amount in DESTINATIONS.items():
-            IncentiveRule.objects.get_or_create(
-                destination_country=country, defaults={'amount': amount}
-            )
+            if not IncentiveRule.objects.filter(destination_country__iexact=country).exists():
+                IncentiveRule.objects.create(destination_country=country, amount=amount)
 
     def _generate_month(self, employees, year, month):
         days_in_month = calendar.monthrange(year, month)[1]
-        today = timezone.now().date()
+        today = timezone.localdate()
 
         for emp in employees:
             leave_days_this_month = 0
@@ -155,27 +201,26 @@ class Command(BaseCommand):
                         defaults={'destination_country': country}
                     )
 
-            # Payroll for the month
-            deducted_leaves = Leave.objects.filter(
-                employee=emp, date__year=year, date__month=month, is_deducted=True
-            ).count()
-            per_day_rate = emp.monthly_salary / days_in_month
-            leave_deduction = round(per_day_rate * deducted_leaves, 2)
-            incentive_total = sum(
-                e.incentive_amount for e in StudentEnrollment.objects.filter(
-                    counselor=emp, confirmed_on__year=year, confirmed_on__month=month
-                )
-            )
+            calculation = compute_payroll(emp, year, month)
             payroll, created = Payroll.objects.get_or_create(
                 employee=emp, month=month, year=year,
                 defaults={
-                    'base_salary': emp.monthly_salary,
-                    'leave_deduction': leave_deduction,
-                    'incentive_total': incentive_total,
+                    'base_salary': calculation.base_salary,
+                    'leave_deduction': calculation.leave_deduction,
+                    'incentive_total': calculation.incentive_total,
                 }
             )
             if not created:
-                payroll.base_salary = emp.monthly_salary
-                payroll.leave_deduction = leave_deduction
-                payroll.incentive_total = incentive_total
-                payroll.save()
+                amounts_changed = (
+                    payroll.base_salary != calculation.base_salary
+                    or payroll.leave_deduction != calculation.leave_deduction
+                    or payroll.incentive_total != calculation.incentive_total
+                )
+                if amounts_changed:
+                    payroll.base_salary = calculation.base_salary
+                    payroll.leave_deduction = calculation.leave_deduction
+                    payroll.incentive_total = calculation.incentive_total
+                    payroll.is_approved = False
+                    payroll.approved_at = None
+                    payroll.approved_by = None
+                    payroll.save()

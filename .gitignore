@@ -11,3 +11,4 @@ staticfiles/
 *.log
 *.pdf
 *.xlsx
+!UAT_ALHAM_HRM.xlsx

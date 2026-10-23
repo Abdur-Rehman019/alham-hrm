@@ -14,7 +14,7 @@ def post_login_redirect(request):
     """Admins go to the dashboard, employees to their own portal."""
     if is_admin_user(request.user):
         return redirect('dashboard_home')
-    return redirect('self_attendance')
+    return redirect('portal_dashboard')
 
 
 class StrictPasswordChangeForm(PasswordChangeForm):

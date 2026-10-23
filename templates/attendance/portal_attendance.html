@@ -1,0 +1,29 @@
+{% extends 'core/base.html' %}
+{% block page_title %}Attendance{% endblock %}
+{% block content %}
+{% if not employee %}<div class="alert alert-danger">Your account is not linked to an employee record.</div>{% else %}
+<div class="d-flex justify-content-between align-items-center mb-3"><h5 class="fw-bold mb-0">Attendance · {{ period_label }}</h5>
+<select class="form-select form-select-sm" style="max-width:220px" onchange="const [y,m]=this.value.split('-');location.href='?month='+m+'&year='+y">{% for o in options %}<option value="{{ o.year }}-{{ o.month }}" {% if o.year == year and o.month == month %}selected{% endif %}>{{ o.label }}</option>{% endfor %}</select></div>
+<div class="row g-3 mb-3">
+<div class="col-md"><div class="card stat-card"><div class="label">Attendance rate</div><div class="value">{% if summary.rate is None %}—{% else %}{{ summary.rate }}%{% endif %}</div></div></div>
+<div class="col-md"><div class="card stat-card"><div class="label">Present</div><div class="value">{{ summary.present }}</div></div></div>
+<div class="col-md"><div class="card stat-card"><div class="label">Absent</div><div class="value">{{ summary.absent }}</div></div></div>
+<div class="col-md"><div class="card stat-card"><div class="label">Late</div><div class="value">{{ summary.late }}</div></div></div>
+<div class="col-md"><div class="card stat-card"><div class="label">Average check-in</div><div class="value">{{ summary.avg_checkin|default:"—" }}</div></div></div>
+</div>
+<div class="card p-3 mb-3">
+<h6 class="fw-semibold">Today · {{ today|date:"D, d M Y" }}</h6>
+{% if today_record.status == 'leave' %}<div class="alert alert-warning mb-0">You are on approved leave today.</div>
+{% elif today_record.check_in_time %}<div class="alert alert-success mb-0">Checked in at {{ today_record.check_in_time|time:"g:i A" }}.</div>
+{% elif today_record %}<div class="alert alert-secondary mb-0">{{ today_record.get_status_display }}</div>
+{% elif is_sunday %}<div class="alert alert-secondary mb-0">Sunday is the weekly holiday.</div>
+{% else %}<form method="post">{% csrf_token %}<button name="action" value="check_in" class="btn btn-primary">Check in now</button></form>{% endif %}
+</div>
+<div class="row g-3 mb-3"><div class="col-lg-6"><div class="card p-3"><h6>Attendance · last 6 months</h6><canvas id="attendanceChart" height="130"></canvas></div></div><div class="col-lg-6"><div class="card p-3"><h6>Check-in time by day</h6><canvas id="checkinChart" height="130"></canvas></div></div></div>
+<div class="card p-3"><h6>Daily records</h6><div class="table-responsive"><table class="table table-sm"><thead><tr><th>Date</th><th>Status</th><th>Check-in</th><th>Note</th></tr></thead><tbody>{% for r in attendance_log %}<tr><td>{{ r.date|date:"D, d M Y" }}</td><td>{% include 'core/_status_badge.html' with status=r.status %}</td><td>{{ r.check_in|time:"g:i A"|default:"—" }}</td><td>{{ r.note }}</td></tr>{% empty %}<tr><td colspan="4" class="text-muted text-center">No records for this month.</td></tr>{% endfor %}</tbody></table></div></div>
+{% endif %}
+{% endblock %}
+{% block extra_scripts %}{% if employee %}{% include 'core/_chart_helpers.html' %}<script>
+hrmChart('attendanceChart',stackedAttendance(DATA.months,DATA.present,DATA.leave,DATA.absent));
+hrmChart('checkinChart',{type:'line',data:{labels:DATA.checkin_days,datasets:[{label:'Check-in',data:DATA.checkin_minutes,borderColor:C.blue,tension:.2}]},options:{scales:{y:{ticks:{callback:minutesToClock}}}}});
+</script>{% endif %}{% endblock %}

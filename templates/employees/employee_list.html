@@ -42,7 +42,7 @@
       </td>
       <td class="pe-3">
         <a href="{% url 'employee_edit' emp.pk %}" class="small">Edit</a>
-        {% if emp.is_active %} | <a href="{% url 'employee_deactivate' emp.pk %}" class="small text-danger" onclick="return confirm('Deactivate {{ emp.name }}?');">Deactivate</a>{% endif %}
+        {% if emp.is_active %} | <form method="post" action="{% url 'employee_deactivate' emp.pk %}" class="d-inline" onsubmit="return confirm('Deactivate {{ emp.name }}?');">{% csrf_token %}<button class="btn btn-link btn-sm text-danger p-0">Deactivate</button></form>{% endif %}
       </td>
     </tr>
     {% empty %}

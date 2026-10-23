@@ -1,6 +1,7 @@
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+from django.conf import settings
 from employees.models import Employee
 
 
@@ -41,12 +42,12 @@ class StudentEnrollment(models.Model):
         ordering = ['-confirmed_on']
 
     def clean(self):
-        if self.confirmed_on and self.confirmed_on > timezone.now().date():
+        if self.confirmed_on and self.confirmed_on > timezone.localdate():
             raise ValidationError({'confirmed_on': 'Confirmation date cannot be in the future.'})
 
     def save(self, *args, **kwargs):
         if not self.incentive_amount:
-            rule = IncentiveRule.objects.filter(destination_country=self.destination_country).first()
+            rule = IncentiveRule.objects.filter(destination_country__iexact=self.destination_country.strip()).first()
             self.incentive_amount = rule.amount if rule else 0
         super().save(*args, **kwargs)
 
@@ -63,6 +64,15 @@ class Payroll(models.Model):
     incentive_total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     net_pay = models.DecimalField(max_digits=10, decimal_places=2, editable=False)
     generated_on = models.DateTimeField(auto_now_add=True)
+    is_approved = models.BooleanField(default=False)
+    approved_at = models.DateTimeField(blank=True, null=True)
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='approved_payrolls',
+    )
 
     class Meta:
         unique_together = ('employee', 'month', 'year')
@@ -74,3 +84,21 @@ class Payroll(models.Model):
 
     def __str__(self):
         return f"{self.employee.name} - {self.month}/{self.year}"
+
+
+class PayslipEmail(models.Model):
+    payroll = models.ForeignKey(Payroll, on_delete=models.CASCADE, related_name='email_attempts')
+    recipient = models.EmailField(blank=True)
+    sent_at = models.DateTimeField(auto_now_add=True)
+    sent_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='payslip_email_attempts',
+    )
+    success = models.BooleanField(default=False)
+    error = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-sent_at']
+
+    def __str__(self):
+        return f"{self.payroll} - {self.recipient or 'no recipient'} - {'sent' if self.success else 'failed'}"
