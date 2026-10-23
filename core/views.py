@@ -1,12 +1,110 @@
+import logging
+
 from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
+from django.contrib.auth import views as auth_views
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordChangeForm
+from django.core.cache import cache
 from django.core.exceptions import ValidationError
+from django.db import connection
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
+from django.urls import reverse_lazy
 
 from employees.models import Employee
+from .email import email_problem
+from .forms import EmployeePasswordResetForm
 from .middleware import is_admin_user
+
+logger = logging.getLogger(__name__)
+RESET_REQUESTS_PER_HOUR = 5
+
+
+def healthz(request):
+    """Used by Railway's health check: the app is up and the database answers."""
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute('SELECT 1')
+    except Exception:
+        logger.exception('Health check: database unavailable')
+        return JsonResponse({'status': 'database unavailable'}, status=503)
+    return JsonResponse({'status': 'ok'})
+
+
+def _client_ip(request):
+    forwarded = request.META.get('HTTP_X_FORWARDED_FOR', '')
+    return forwarded.split(',')[0].strip() or request.META.get('REMOTE_ADDR', '')
+
+
+class PasswordResetView(auth_views.PasswordResetView):
+    template_name = 'core/password_reset.html'
+    email_template_name = 'core/password_reset_email.html'
+    subject_template_name = 'core/password_reset_subject.txt'
+    form_class = EmployeePasswordResetForm
+    success_url = reverse_lazy('password_reset_done')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['email_problem'] = email_problem()
+        return context
+
+    def form_valid(self, form):
+        problem = email_problem()
+        if problem:
+            logger.error('Password reset requested but %s', problem)
+            form.add_error(None, 'Password reset by email is not available yet. Please ask HR to reset your password.')
+            return self.form_invalid(form)
+
+        key = f'password-reset:{_client_ip(self.request)}'
+        attempts = cache.get(key, 0)
+        if attempts >= RESET_REQUESTS_PER_HOUR:
+            form.add_error(None, 'Too many reset requests. Please wait an hour and try again.')
+            return self.form_invalid(form)
+        cache.set(key, attempts + 1, 60 * 60)
+
+        try:
+            return super().form_valid(form)
+        except Exception:
+            logger.exception('Password reset email could not be sent')
+            form.add_error(None, 'We could not send the email right now. Please try again later or ask HR to reset your password.')
+            return self.form_invalid(form)
+
+
+class PasswordResetConfirmView(auth_views.PasswordResetConfirmView):
+    template_name = 'core/password_reset_confirm.html'
+    success_url = reverse_lazy('password_reset_complete')
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        for field in form.fields.values():
+            field.widget.attrs['class'] = 'form-control'
+        return form
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        user = form.user
+        # A new password chosen through the emailed link is the user's own, and ends any lockout.
+        Employee.objects.filter(user=user).update(must_change_password=False)
+        from axes.utils import reset
+        reset(username=user.get_username())
+        return response
+
+
+def page_not_found(request, exception):
+    return render(request, 'core/error.html', {
+        'code': 404, 'title': 'Page not found',
+        'text': "The page you are looking for doesn't exist or has moved.",
+    }, status=404)
+
+
+def server_error(request):
+    # Rendered without the request context: the error may have come from the database or a context processor.
+    from django.template.loader import render_to_string
+    return HttpResponse(render_to_string('core/error.html', {
+        'code': 500, 'title': 'Something went wrong',
+        'text': 'The error has been logged. Please go back and try again in a moment.',
+    }), status=500)
 
 
 @login_required

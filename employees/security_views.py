@@ -68,11 +68,12 @@ def employee_create_login(request, pk):
         messages.error(request, "Cannot create a login for an inactive employee.")
         return redirect('employee_detail', pk=employee.pk)
 
-    form = CreateLoginForm(request.POST or None)
+    form = CreateLoginForm(request.POST or None, initial={'email': employee.email or ''})
     if request.method == 'POST' and form.is_valid():
         with transaction.atomic():
             user = User.objects.create_user(
-                username=form.cleaned_data['username'], email=form.cleaned_data.get('email', ''),
+                username=form.cleaned_data['username'],
+                email=form.cleaned_data.get('email') or employee.email or '',
                 password=form.cleaned_data['password1'], is_staff=False,
             )
             # update() avoids re-running full model validation on older employee records

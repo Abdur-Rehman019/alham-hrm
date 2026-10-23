@@ -3,7 +3,7 @@
 {% block content %}
 <p class="text-muted small">These cells couldn't be confidently read from the imported sheet (blank, unclear text, or marked "not mention"). Resolve each one below.</p>
 <div class="card">
-<table class="table table-hover mb-0">
+<div class="table-responsive"><table class="table table-hover mb-0">
   <thead><tr><th class="ps-3">Employee</th><th>Date</th><th>Original Text</th><th class="pe-3">Resolve As</th></tr></thead>
   <tbody>
     {% for r in records %}
@@ -25,6 +25,6 @@
     <tr><td colspan="4" class="text-center text-muted py-4">Nothing needs review right now.</td></tr>
     {% endfor %}
   </tbody>
-</table>
+</table></div>
 </div>
 {% endblock %}

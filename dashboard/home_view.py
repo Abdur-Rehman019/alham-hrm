@@ -35,22 +35,23 @@ def dashboard_home(request):
     roles = list(Employee.objects.filter(is_active=True).values('role').annotate(c=Count('id')).order_by('role'))
     role_names = dict(Employee.ROLE_CHOICES)
 
+    trend_months = analytics.back_months(year, month, 6)
+    summaries = analytics.attendance_summaries(staff, trend_months)
+
     # Per-employee attendance for the month (also drives the rate chart and the details table)
-    rows = []
-    for e in staff:
-        s = analytics.attendance_summary(e, year, month)
-        rows.append({'employee': e, **s})
+    rows = [{'employee': e, **summaries[(e.pk, year, month)]} for e in staff]
 
     # 6-month organisation-wide trends
+    totals = analytics.monthly_enrollment_totals(StudentEnrollment.objects.all(), trend_months)
     months, enroll_trend, incentive_trend, rate_trend = [], [], [], []
-    for y, m in analytics.back_months(year, month, 6):
-        qs = StudentEnrollment.objects.filter(confirmed_on__year=y, confirmed_on__month=m)
+    for y, m in trend_months:
+        count, incentives = totals.get((y, m), (0, 0))
         months.append(analytics.month_label(y, m))
-        enroll_trend.append(qs.count())
-        incentive_trend.append(float(qs.aggregate(t=Sum('incentive_amount'))['t'] or 0))
+        enroll_trend.append(count)
+        incentive_trend.append(float(incentives))
         present = working = 0
         for e in staff:
-            s = analytics.attendance_summary(e, y, m)
+            s = summaries[(e.pk, y, m)]
             present += s['present']
             working += s['working_days']
         rate_trend.append(min(100, round(present * 100 / working)) if working else None)

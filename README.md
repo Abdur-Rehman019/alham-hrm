@@ -74,8 +74,9 @@ Production seeding requires `DEBUG=False` and PostgreSQL, is wrapped in one tran
 | `DEBUG` | `False` in production. |
 | `ALLOWED_HOSTS` | Comma-separated host names. |
 | `DATABASE_URL` | Optional database URL; omit locally to use SQLite. |
-| `EMAIL_BACKEND` | Optional Django backend. Defaults to console in local `DEBUG=True` and SMTP in production. |
-| `EMAIL_HOST` | SMTP server hostname. |
+| `BREVO_API_KEY` | Recommended on Railway. Sends email through Brevo's HTTPS API, which works on every Railway plan. |
+| `EMAIL_BACKEND` | Optional. Chosen automatically: Brevo when `BREVO_API_KEY` is set, SMTP when `EMAIL_HOST` is set, otherwise console (prints only, delivers nothing). |
+| `EMAIL_HOST` | SMTP server hostname (only if SMTP is allowed on your Railway plan). |
 | `EMAIL_PORT` | SMTP port, commonly `587` with TLS. |
 | `EMAIL_HOST_USER` | SMTP account name. |
 | `EMAIL_HOST_PASSWORD` | SMTP credential or provider app password. |
@@ -83,10 +84,20 @@ Production seeding requires `DEBUG=False` and PostgreSQL, is wrapped in one tran
 | `EMAIL_TIMEOUT` | SMTP connection timeout in seconds; defaults to 10. |
 | `DEFAULT_FROM_EMAIL` | Sender shown on payslip messages. |
 | `SECURE_SSL_REDIRECT` | Defaults to `True` when `DEBUG=False`; set only when the deployment proxy configuration requires it. |
+| `MEDIA_ROOT` | Where uploaded employee photos are stored. On Railway, point it at a mounted volume (e.g. `/data/media`). |
 
-Set SMTP secrets in Railway Variables, not in source control. Production defaults to Django's SMTP backend; configure its host, port, account, password, TLS choice, and sender address before attempting delivery. An administrator must approve each generated payroll row; approval immediately attempts to send that employee's payslip, with a text breakdown and PDF attachment. An approved payroll can be resent by an administrator if delivery fails or a resend is needed. Changing payroll amounts during regeneration clears approval and requires a fresh approval. The linked login user's email is preferred; `Employee.email` is the fallback. Every attempt, including skipped or failed sends, is retained in the payroll email audit table.
+### Setting up email (password reset links and payslips)
 
-Railway may restrict outbound SMTP on lower-tier plans. First verify Railway's current outbound mail limits and the chosen provider's port support. If SMTP cannot be used reliably, evaluate an HTTP mail API integration such as django-anymail with Brevo or Resend; do not add an email provider dependency until the SMTP path is confirmed unusable.
+Railway blocks outgoing SMTP on its Free, Trial and Hobby plans, so use Brevo's HTTPS API:
+
+1. Create a free account at brevo.com. Under **Senders, Domains & Dedicated IPs**, add and verify the sender address you will send from (a Gmail address works).
+2. Under **SMTP & API → API Keys**, create an API key.
+3. In Railway, open the `web` service → **Variables** and add `BREVO_API_KEY` (the key) and `DEFAULT_FROM_EMAIL`, e.g. `ALHAM HRM <your-verified-sender@gmail.com>`. Railway redeploys automatically.
+4. Check delivery from your computer: `railway run --service web python manage.py send_test_email you@example.com`, or use **Forgot your password?** on the login page.
+
+Until email is configured, the deploy log shows warning `core.W001`, the reset page tells people to ask HR, and payslip approval says the payslip was not sent and why. A password reset link goes to the login's email, or to the email on the employee's HR record when the login has none.
+
+Keep secrets in Railway Variables, not in source control. An administrator must approve each generated payroll row; approval immediately attempts to send that employee's payslip, with a text breakdown and PDF attachment. An approved payroll can be resent by an administrator if delivery fails or a resend is needed. Changing payroll amounts during regeneration clears approval and requires a fresh approval. The linked login user's email is preferred; `Employee.email` is the fallback. Every attempt, including skipped or failed sends, is retained in the payroll email audit table.
 
 ## Business rules
 
@@ -115,7 +126,7 @@ The tests cover employee role isolation, portal rendering, payroll calculations,
 1. Connect the GitHub repository to a Railway project and provision a PostgreSQL database.
 2. Add `SECRET_KEY`, `DEBUG=False`, `ALLOWED_HOSTS`, and the SMTP environment variables to Railway Variables. Set `DATABASE_URL` to the provisioned PostgreSQL connection string if Railway has not injected it automatically.
 3. Confirm the service's public domain is included in `ALLOWED_HOSTS`, and enable HTTPS.
-4. The Procfile runs database migrations and `collectstatic` before Gunicorn, binding to Railway's injected `PORT` on `0.0.0.0` (with port 8000 as a local fallback). Review deployment logs for migration, static-collection, and startup failures; never run `makemigrations` as part of production startup.
+4. `railway.json` sets a health check on `/healthz/`, so a broken build is never switched live, and restarts the app if it crashes. The Procfile runs database migrations and `collectstatic` before Gunicorn, binding to Railway's injected `PORT` on `0.0.0.0` (with port 8000 as a local fallback). Review deployment logs for migration, static-collection, and startup failures; never run `makemigrations` as part of production startup.
 5. Log in with the existing superuser, confirm an employee can log in and is forced to change a temporary password, generate a payroll, then approve it to test automatic payslip delivery to a controlled address.
 6. Verify `DEBUG=False`, HTTPS redirects/cookies, static assets, database persistence after redeploy, and a recovery-tested backup.
 
@@ -125,7 +136,7 @@ Do not place credentials in GitHub, the Procfile, or this README. Use Railway's 
 
 Back up the Railway PostgreSQL database on a schedule using Railway's supported backups or a separately secured `pg_dump` process. Store backups outside the application service, restrict access, retain multiple recovery points, and periodically test restoring one. Confirm backup scope and retention with the system owner before making changes to production data.
 
-Employee photos currently live under the service's local media directory and can be lost on Railway redeploys. Use S3-compatible object storage if photos must persist. The system does not automatically email payslips on a schedule; an administrator approves each payroll row, which sends that employee's payslip.
+Employee photos live under `MEDIA_ROOT` and are served only to signed-in users. Railway's disk is wiped on every deploy, so add a Volume to the `web` service (mount path e.g. `/data`) and set `MEDIA_ROOT=/data/media`, or photos will disappear. The system does not automatically email payslips on a schedule; an administrator approves each payroll row, which sends that employee's payslip.
 
 ## Manual UAT
 

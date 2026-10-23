@@ -129,7 +129,7 @@ class PayrollWorkflowTests(TestCase):
         attempt = payroll.email_attempts.get()
         self.assertFalse(attempt.success)
         self.assertIn('only prints messages', attempt.error)
-        self.assertIn('configure an SMTP', attempt.error)
+        self.assertIn('not configured', attempt.error)
 
     @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
     def test_missing_email_and_outdated_payroll_are_logged_and_not_sent(self):

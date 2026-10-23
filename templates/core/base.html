@@ -3,171 +3,257 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0a1e4d">
 <title>{% block title %}ALHAM HRM{% endblock %}</title>
 <link rel="icon" href="data:,">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
     --sidebar-bg: #0a1e4d;
-    --sidebar-active: #063fb0; 
+    --sidebar-active: #063fb0;
     --accent: #063fb0;
     --accent-secondary: #dbe803;
     --page-bg: #f4f6f9;
     --text-dark: #111827;
+    --sidebar-w: 250px;
   }
   * { box-sizing: border-box; }
-  body { font-family: 'Inter', sans-serif; background: var(--page-bg); color: var(--text-dark); }
+  html, body { overflow-x: hidden; }
+  body { font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif; background: var(--page-bg); color: var(--text-dark); }
 
+  /* Sidebar: fixed column on laptops, slide-in menu (Bootstrap offcanvas) on phones and tablets */
   .sidebar {
-    width: 250px; height: 100vh; background: var(--sidebar-bg);
-    position: fixed; top: 0; left: 0; padding: 1.5rem 1rem;
-    display: flex; flex-direction: column; overflow-y: auto;
+    background: var(--sidebar-bg); width: var(--sidebar-w);
+    padding: 1.5rem 1rem; display: flex; flex-direction: column; overflow-y: auto;
   }
+  @media (min-width: 992px) {
+    .sidebar.offcanvas-lg { position: fixed; top: 0; left: 0; height: 100vh; z-index: 1030; background-color: var(--sidebar-bg) !important; }
+  }
+  @media (max-width: 991.98px) {
+    .sidebar.offcanvas-lg { --bs-offcanvas-width: 280px; --bs-offcanvas-bg: var(--sidebar-bg); }
+  }
+  .sidebar .offcanvas-body { display: flex; flex-direction: column; padding: 0; flex-grow: 1; overflow-y: visible; }
   .sidebar .brand {
-    color: #fff; font-weight: 800; font-size: 1.2rem; margin-bottom: 2rem;
+    color: #fff; font-weight: 800; font-size: 1.2rem; margin-bottom: 1.5rem;
     display: flex; align-items: center; gap: .5rem; letter-spacing: .3px;
   }
-  .sidebar .brand img {
-    max-height: 40px;
-    max-width: 190px;
-    width: auto;
-    object-fit: contain;
-  }
-  .sidebar .brand span { color: var(--accent-secondary); }
+  .sidebar .brand img { max-height: 40px; max-width: 190px; width: auto; object-fit: contain; }
   .sidebar .nav-section-label {
-    color: rgba(255,255,255,0.35); font-size: .7rem; font-weight: 700; text-transform: uppercase;
+    color: rgba(255,255,255,0.45); font-size: .7rem; font-weight: 700; text-transform: uppercase;
     letter-spacing: .08em; margin: 1rem 0 .4rem .8rem;
   }
-  .sidebar a {
-    display: flex; align-items: center; gap: .65rem; color: #b8c4e0; text-decoration: none;
-    padding: .55rem .8rem; border-radius: 8px; margin-bottom: .15rem; font-size: .89rem; font-weight: 500;
-    transition: background .12s ease, color .12s ease;
+  .sidebar a, .sidebar .logout-btn {
+    display: flex; align-items: center; gap: .65rem; color: #c3cde6; text-decoration: none;
+    padding: .6rem .8rem; border-radius: 8px; margin-bottom: .15rem; font-size: .9rem; font-weight: 500;
+    transition: background .12s ease, color .12s ease; width: 100%; border: 0; background: none; text-align: left;
   }
-  .sidebar a i { font-size: 1rem; width: 1.1rem; text-align: center; }
-  .sidebar a:hover { background: rgba(255,255,255,0.08); color: #fff; }
+  .sidebar a i, .sidebar .logout-btn i { font-size: 1rem; width: 1.1rem; text-align: center; }
+  .sidebar a:hover, .sidebar .logout-btn:hover { background: rgba(255,255,255,0.08); color: #fff; }
   .sidebar a.active { background: var(--accent); color: #fff; box-shadow: 0 2px 8px rgba(6,63,176,0.4); }
   .sidebar .sidebar-footer { margin-top: auto; padding-top: 1rem; }
+  .sidebar .btn-close-white { opacity: .8; }
 
-  .main-content { margin-left: 250px; padding: 1.75rem 2rem; }
+  /* Mobile app bar */
+  .mobile-bar {
+    position: sticky; top: 0; z-index: 1020; background: var(--sidebar-bg); color: #fff;
+    display: flex; align-items: center; gap: .75rem; padding: .6rem 1rem;
+    padding-top: calc(.6rem + env(safe-area-inset-top));
+    box-shadow: 0 2px 8px rgba(10,30,77,.25);
+  }
+  .mobile-bar .menu-btn { color: #fff; font-size: 1.6rem; line-height: 1; padding: .15rem .35rem; border: 0; background: none; }
+  .mobile-bar img { max-height: 30px; max-width: 140px; object-fit: contain; }
+
+  .main-content { padding: 1.75rem 2rem; min-width: 0; }
+  @media (min-width: 992px) { .main-content { margin-left: var(--sidebar-w); } }
+  @media (max-width: 991.98px) { .main-content { padding: 1rem; } }
+
   .topbar {
-    display: flex; justify-content: space-between; align-items: center;
-    margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid #e5e7eb;
+    display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+    margin-bottom: 1.25rem; padding-bottom: 1rem; border-bottom: 1px solid #e5e7eb;
   }
-  .topbar h4 { margin: 0; font-weight: 800; color: var(--text-dark); }
-  .user-chip {
-    display: flex; align-items: center; gap: .5rem; font-size: .85rem; color: #6b7280;
+  .topbar h4 { margin: 0; font-weight: 800; color: var(--text-dark); font-size: clamp(1.15rem, 4vw, 1.5rem); }
+  .user-chip { display: flex; align-items: center; gap: .5rem; font-size: .85rem; color: #6b7280; white-space: nowrap; }
+  .user-chip .avatar, .mobile-bar .avatar {
+    width: 30px; height: 30px; border-radius: 50%; background: var(--accent);
+    color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: .8rem; flex-shrink: 0;
   }
-  .user-chip .avatar {
-    width: 28px; height: 28px; border-radius: 50%; background: var(--accent);
-    color: #fff; display: flex; align-items: center; justify-content: center;
-    font-weight: 700; font-size: .8rem;
-  }
+  .mobile-bar .avatar { background: var(--accent-secondary); color: var(--sidebar-bg); margin-left: auto; }
 
   .card { border: none; border-radius: 14px; box-shadow: 0 1px 3px rgba(16,24,40,0.06), 0 1px 2px rgba(16,24,40,0.04); }
+  .card[style*="max-width"] { width: 100%; }
   .stat-card { padding: 1.25rem; border-left: 4px solid var(--accent-secondary); position: relative; }
   .stat-card .icon-badge {
     position: absolute; top: 1.1rem; right: 1.1rem; width: 36px; height: 36px; border-radius: 10px;
     background: #eef2ff; color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 1.05rem;
   }
-  .stat-card .label { color: #6b7280; font-size: .8rem; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
-  .stat-card .value { font-size: 1.65rem; font-weight: 800; color: var(--text-dark); margin-top: .15rem; }
+  .stat-card .label { color: #6b7280; font-size: .8rem; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; padding-right: 2.5rem; }
+  .stat-card .value { font-size: clamp(1.3rem, 5vw, 1.65rem); font-weight: 800; color: var(--text-dark); margin-top: .15rem; overflow-wrap: anywhere; }
 
   .badge-role { background: #e6ecfa; color: var(--accent); font-weight: 600; }
-  table th { font-size: .75rem; text-transform: uppercase; color: #6b7280; font-weight: 700; border-top: none; letter-spacing: .03em; }
+  table th { font-size: .75rem; text-transform: uppercase; color: #6b7280; font-weight: 700; border-top: none; letter-spacing: .03em; white-space: nowrap; }
   table td { vertical-align: middle; }
+  .table-responsive { -webkit-overflow-scrolling: touch; }
 
   .btn-primary { background: var(--accent); border-color: var(--accent); font-weight: 600; }
-  .btn-primary:hover { background: #052f85; border-color: #052f85; }
+  .btn-primary:hover, .btn-primary:focus { background: #052f85; border-color: #052f85; }
   .btn-outline-primary { color: var(--accent); border-color: var(--accent); font-weight: 600; }
   .btn-outline-primary:hover { background: var(--accent); border-color: var(--accent); }
   a { color: var(--accent); }
   .form-control:focus, .form-select:focus { border-color: var(--accent); box-shadow: 0 0 0 0.2rem rgba(6,63,176,0.15); }
+  .alert { border-radius: 10px; }
 
   .empty-state { text-align: center; padding: 2.5rem 1rem; color: #9ca3af; }
   .empty-state i { font-size: 2rem; display: block; margin-bottom: .5rem; opacity: .5; }
+
+  /* Sign-in, password reset and error pages */
+  .auth-page {
+    min-height: 100vh; min-height: 100dvh; display: flex; align-items: center; justify-content: center;
+    padding: 1.5rem 1rem; background: linear-gradient(135deg, #0a1e4d 0%, #063fb0 100%);
+  }
+  .auth-card { width: 100%; max-width: 400px; padding: 1.75rem; }
+  .auth-icon {
+    width: 52px; height: 52px; border-radius: 14px; background: #eef2ff; color: var(--accent);
+    display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin-bottom: .75rem;
+  }
+  .password-field { position: relative; }
+  .password-field .form-control { padding-right: 2.75rem; }
+  .password-toggle {
+    position: absolute; right: .35rem; top: 50%; transform: translateY(-50%);
+    border: 0; background: none; color: #6b7280; padding: .25rem .5rem; font-size: 1.1rem;
+  }
+
+  @media (max-width: 767.98px) {
+    /* 16px inputs stop phones from zooming in when a field is tapped */
+    .form-control, .form-select, .form-control-sm, .form-select-sm { font-size: 16px; }
+    .form-select[style*="max-width"] { max-width: 100% !important; }
+    .btn { padding-top: .5rem; padding-bottom: .5rem; }
+    .card.p-4 { padding: 1.25rem !important; }
+    table { font-size: .85rem; }
+    .table > :not(caption) > * > * { padding: .55rem .5rem; }
+    .main-content h5 { font-size: 1.05rem; }
+  }
 </style>
 {% block extra_head %}{% endblock %}
 </head>
 <body>
+{% block body %}
 {% if user.is_authenticated %}
-<nav class="sidebar">
-  <a href="{% if user.is_staff or user.is_superuser %}{% url 'dashboard_home' %}{% else %}{% url 'portal_dashboard' %}{% endif %}" class="brand">
-    <img src="{% static 'images/logo.svg' %}" alt="ALHAM HRM Logo">
-  </a>
+<header class="mobile-bar d-lg-none">
+  <button class="menu-btn" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebar" aria-controls="sidebar" aria-label="Open menu">
+    <i class="bi bi-list"></i>
+  </button>
+  <img src="{% static 'images/logo.svg' %}" alt="ALHAM HRM">
+  <div class="avatar" title="{{ user.username }}">{{ user.username|slice:":1"|upper }}</div>
+</header>
 
+<nav class="sidebar offcanvas-lg offcanvas-start" tabindex="-1" id="sidebar" aria-label="Main menu">
+  <div class="d-flex align-items-start justify-content-between">
+    <a href="{% if user.is_staff or user.is_superuser %}{% url 'dashboard_home' %}{% else %}{% url 'portal_dashboard' %}{% endif %}" class="brand p-0">
+      <img src="{% static 'images/logo.svg' %}" alt="ALHAM HRM Logo">
+    </a>
+    <button type="button" class="btn-close btn-close-white d-lg-none mt-1" data-bs-dismiss="offcanvas" data-bs-target="#sidebar" aria-label="Close menu"></button>
+  </div>
+  <div class="offcanvas-body">
+  {% with url_name=request.resolver_match.url_name|default:"" %}
   {% if user.is_staff or user.is_superuser %}
-  <a href="{% url 'dashboard_home' %}" class="{% if request.resolver_match.url_name == 'dashboard_home' %}active{% endif %}"><i class="bi bi-grid-1x2-fill"></i> Dashboard</a>
+  <a href="{% url 'dashboard_home' %}" class="{% if url_name == 'dashboard_home' %}active{% endif %}"><i class="bi bi-grid-1x2-fill"></i> Dashboard</a>
 
   <div class="nav-section-label">Workforce</div>
-  <a href="{% url 'employee_list' %}" class="{% if 'employee' in request.resolver_match.url_name %}active{% endif %}"><i class="bi bi-people-fill"></i> Employees</a>
-  <a href="{% url 'leave_list' %}" class={% if request.resolver_match.url_name == 'leave_list' or request.resolver_match.url_name == 'leave_add' %}active{% endif %}><i class="bi bi-calendar-check-fill"></i> Attendance</a>
-  <a href="{% url 'attendance_review' %}" class="{% if request.resolver_match.url_name == 'attendance_review' %}active{% endif %}"><i class="bi bi-flag-fill"></i> Attendance Review</a>
-  <a href="{% url 'leave_requests_list' %}" class="{% if 'leave_request' in request.resolver_match.url_name %}active{% endif %}"><i class="bi bi-envelope-paper-fill"></i> Leave Requests{% if pending_leave_count %} <span class="badge ms-auto" style="background:#dbe803;color:#0a1e4d;">{{ pending_leave_count }}</span>{% endif %}</a>
+  <a href="{% url 'employee_list' %}" class="{% if 'employee' in url_name %}active{% endif %}"><i class="bi bi-people-fill"></i> Employees</a>
+  <a href="{% url 'leave_list' %}" class="{% if url_name == 'leave_list' or url_name == 'leave_add' %}active{% endif %}"><i class="bi bi-calendar-check-fill"></i> Attendance</a>
+  <a href="{% url 'attendance_review' %}" class="{% if url_name == 'attendance_review' %}active{% endif %}"><i class="bi bi-flag-fill"></i> Attendance Review</a>
+  <a href="{% url 'leave_requests_list' %}" class="{% if 'leave_request' in url_name %}active{% endif %}"><i class="bi bi-envelope-paper-fill"></i> Leave Requests{% if pending_leave_count %} <span class="badge ms-auto" style="background:#dbe803;color:#0a1e4d;">{{ pending_leave_count }}</span>{% endif %}</a>
 
   <div class="nav-section-label">Admissions</div>
-  <a href="{% url 'enrollment_list' %}" class="{% if request.resolver_match.url_name == 'enrollment_list' %}active{% endif %}"><i class="bi bi-mortarboard-fill"></i> Enrollments</a>
-  <a href="{% url 'incentive_rule_list' %}" class="{% if 'incentive' in request.resolver_match.url_name %}active{% endif %}"><i class="bi bi-percent"></i> Incentive Rules</a>
+  <a href="{% url 'enrollment_list' %}" class="{% if url_name == 'enrollment_list' or url_name == 'enrollment_add' %}active{% endif %}"><i class="bi bi-mortarboard-fill"></i> Enrollments</a>
+  <a href="{% url 'incentive_rule_list' %}" class="{% if 'incentive' in url_name %}active{% endif %}"><i class="bi bi-percent"></i> Incentive Rules</a>
 
   <div class="nav-section-label">Payroll</div>
-  <a href="{% url 'payroll_generate' %}" class="{% if 'payroll' in request.resolver_match.url_name %}active{% endif %}"><i class="bi bi-cash-coin"></i> Payroll</a>
+  <a href="{% url 'payroll_generate' %}" class="{% if 'payroll' in url_name %}active{% endif %}"><i class="bi bi-cash-coin"></i> Payroll</a>
 
   <div class="nav-section-label">Bulk Import</div>
-  <a href="{% url 'enrollment_import' %}" class="{% if request.resolver_match.url_name == 'enrollment_import' %}active{% endif %}"><i class="bi bi-file-earmark-arrow-up-fill"></i> Import Enrollments</a>
-  <a href="{% url 'attendance_import' %}" class="{% if request.resolver_match.url_name == 'attendance_import' %}active{% endif %}"><i class="bi bi-file-earmark-arrow-up-fill"></i> Import Attendance</a>
+  <a href="{% url 'enrollment_import' %}" class="{% if url_name == 'enrollment_import' %}active{% endif %}"><i class="bi bi-file-earmark-arrow-up-fill"></i> Import Enrollments</a>
+  <a href="{% url 'attendance_import' %}" class="{% if url_name == 'attendance_import' %}active{% endif %}"><i class="bi bi-file-earmark-arrow-up-fill"></i> Import Attendance</a>
 
   <div class="sidebar-footer">
-    <a href="/admin/" target="_blank"><i class="bi bi-gear-fill"></i> Django Admin</a>
+    <a href="/admin/" target="_blank" rel="noopener"><i class="bi bi-gear-fill"></i> Django Admin</a>
     <hr style="border-color:rgba(255,255,255,0.15);">
-        <a href="{% url 'change_password' %}"><i class="bi bi-shield-lock-fill"></i> Change password</a>
+    <a href="{% url 'change_password' %}" class="{% if url_name == 'change_password' %}active{% endif %}"><i class="bi bi-shield-lock-fill"></i> Change password</a>
     <form method="post" action="{% url 'logout' %}" class="m-0">
       {% csrf_token %}
-      <button type="submit" class="btn btn-link p-0 text-decoration-none" style="color:#b8c4e0; display:flex; align-items:center; gap:.65rem; font-size:.89rem; font-weight:500; width:100%; text-align:left;">
-        <i class="bi bi-box-arrow-right"></i> Logout
-      </button>
+      <button type="submit" class="logout-btn"><i class="bi bi-box-arrow-right"></i> Logout</button>
     </form>
   </div>
   {% else %}
   <div class="nav-section-label">Employee portal</div>
-  <a href="{% url 'portal_dashboard' %}" class="{% if request.resolver_match.url_name == 'portal_dashboard' %}active{% endif %}"><i class="bi bi-grid-1x2-fill"></i> Dashboard</a>
-  <a href="{% url 'portal_attendance' %}" class="{% if request.resolver_match.url_name == 'portal_attendance' %}active{% endif %}"><i class="bi bi-calendar-check-fill"></i> Attendance</a>
-  <a href="{% url 'portal_leaves' %}" class="{% if request.resolver_match.url_name == 'portal_leaves' %}active{% endif %}"><i class="bi bi-envelope-paper-fill"></i> Leaves</a>
-  <a href="{% url 'portal_enrollments' %}" class="{% if request.resolver_match.url_name == 'portal_enrollments' %}active{% endif %}"><i class="bi bi-mortarboard-fill"></i> Enrollments</a>
-  <a href="{% url 'portal_salary' %}" class="{% if request.resolver_match.url_name == 'portal_salary' %}active{% endif %}"><i class="bi bi-cash-coin"></i> Salary</a>
-  <a href="{% url 'change_password' %}" class="{% if request.resolver_match.url_name == 'change_password' %}active{% endif %}"><i class="bi bi-shield-lock-fill"></i> Change password</a>
+  <a href="{% url 'portal_dashboard' %}" class="{% if url_name == 'portal_dashboard' %}active{% endif %}"><i class="bi bi-grid-1x2-fill"></i> Dashboard</a>
+  <a href="{% url 'portal_attendance' %}" class="{% if url_name == 'portal_attendance' %}active{% endif %}"><i class="bi bi-calendar-check-fill"></i> Attendance</a>
+  <a href="{% url 'portal_leaves' %}" class="{% if url_name == 'portal_leaves' %}active{% endif %}"><i class="bi bi-envelope-paper-fill"></i> Leaves</a>
+  <a href="{% url 'portal_enrollments' %}" class="{% if url_name == 'portal_enrollments' %}active{% endif %}"><i class="bi bi-mortarboard-fill"></i> Enrollments</a>
+  <a href="{% url 'portal_salary' %}" class="{% if url_name == 'portal_salary' %}active{% endif %}"><i class="bi bi-cash-coin"></i> Salary</a>
+  <a href="{% url 'change_password' %}" class="{% if url_name == 'change_password' %}active{% endif %}"><i class="bi bi-shield-lock-fill"></i> Change password</a>
   <div class="sidebar-footer">
     <form method="post" action="{% url 'logout' %}" class="m-0">
       {% csrf_token %}
-      <button type="submit" class="btn btn-link p-0 text-decoration-none" style="color:#b8c4e0; display:flex; align-items:center; gap:.65rem; font-size:.89rem; font-weight:500; width:100%; text-align:left;">
-        <i class="bi bi-box-arrow-right"></i> Logout
-      </button>
+      <button type="submit" class="logout-btn"><i class="bi bi-box-arrow-right"></i> Logout</button>
     </form>
   </div>
   {% endif %}
+  {% endwith %}
+  </div>
 </nav>
-<div class="main-content">
+
+<main class="main-content">
   <div class="topbar">
     <h4>{% block page_title %}Dashboard{% endblock %}</h4>
-    <div class="user-chip">
+    <div class="user-chip d-none d-lg-flex">
       <div class="avatar">{{ user.username|slice:":1"|upper }}</div>
       {{ user.username }}
     </div>
   </div>
-  {% if messages %}
-    {% for message in messages %}
-      <div class="alert {% if message.tags == 'error' %}alert-danger{% elif message.tags == 'warning' %}alert-warning{% else %}alert-success{% endif %} py-2">{{ message }}</div>
-    {% endfor %}
-  {% endif %}
+  {% include 'core/_messages.html' %}
   {% block content %}{% endblock %}
-</div>
+</main>
 {% else %}
   {% block guest_content %}{% endblock %}
 {% endif %}
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  // Show/hide buttons on password fields, and stop double-submits on slow connections.
+  document.querySelectorAll('input[type="password"]').forEach(function (input) {
+    if (input.closest('.password-field')) return;
+    var wrap = document.createElement('div');
+    wrap.className = 'password-field';
+    input.parentNode.insertBefore(wrap, input);
+    wrap.appendChild(input);
+    var btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'password-toggle'; btn.setAttribute('aria-label', 'Show password');
+    btn.innerHTML = '<i class="bi bi-eye"></i>';
+    btn.addEventListener('click', function () {
+      var show = input.type === 'password';
+      input.type = show ? 'text' : 'password';
+      btn.innerHTML = show ? '<i class="bi bi-eye-slash"></i>' : '<i class="bi bi-eye"></i>';
+      btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+    });
+    wrap.appendChild(btn);
+  });
+  document.querySelectorAll('form[method="post"]').forEach(function (form) {
+    form.addEventListener('submit', function (e) {
+      if (form.dataset.submitted) { e.preventDefault(); return; }
+      if (e.defaultPrevented) return;
+      form.dataset.submitted = '1';
+      setTimeout(function () { delete form.dataset.submitted; }, 8000);
+    });
+  });
+</script>
+{% block chart_lib %}<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>{% endblock %}
 {% block extra_scripts %}{% endblock %}
 </body>
 </html>

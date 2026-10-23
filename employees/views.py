@@ -1,16 +1,11 @@
-import calendar
 from django.contrib.auth.decorators import login_required, user_passes_test
-from django.contrib.auth.models import User
 from django.contrib import messages
 from django.shortcuts import render, redirect, get_object_or_404
 from django.core.exceptions import ValidationError
-from django.core.serializers.json import DjangoJSONEncoder
-from django.db.models import Sum
 from django.utils import timezone
 from django.views.decorators.http import require_POST
-import json
 from .models import Employee
-from .forms import EmployeeForm, CreateLoginForm
+from .forms import EmployeeForm
 from core.middleware import is_admin_user
 
 admin_required = user_passes_test(is_admin_user, login_url='login')
@@ -34,57 +29,6 @@ def employee_list(request):
         'employees': employees,
         'query': query,
         'status': status,
-    })
-
-
-@login_required
-@admin_required
-def employee_detail(request, pk):
-    employee = get_object_or_404(Employee, pk=pk)
-    leaves = employee.leaves.all()[:12]
-    enrollments = employee.enrollments.all()[:12]
-    payrolls = employee.payrolls.all()[:12]
-
-    payroll_months = [f"{p.month}/{p.year}" for p in reversed(payrolls)]
-    payroll_netpay = [float(p.net_pay) for p in reversed(payrolls)]
-
-    today = timezone.localdate()
-    enrollment_trend_months = []
-    enrollment_trend_counts = []
-    attendance_trend_present = []
-    attendance_trend_leave = []
-    attendance_trend_absent = []
-    for i in range(5, -1, -1):
-        month = today.month - i
-        year = today.year
-        while month <= 0:
-            month += 12
-            year -= 1
-        enrollment_trend_months.append(f"{calendar.month_abbr[month]} {year}")
-        enrollment_trend_counts.append(
-            employee.enrollments.filter(confirmed_on__year=year, confirmed_on__month=month).count()
-        )
-        month_attendance = employee.daily_attendance.filter(date__year=year, date__month=month)
-        attendance_trend_present.append(month_attendance.filter(status='present').count())
-        attendance_trend_leave.append(month_attendance.filter(status='leave').count())
-        attendance_trend_absent.append(month_attendance.filter(status='absent').count())
-
-    return render(request, 'employees/employee_detail.html', {
-        'employee': employee,
-        'leaves': leaves,
-        'enrollments': enrollments,
-        'payrolls': payrolls,
-        'payroll_months_json': json.dumps(payroll_months, cls=DjangoJSONEncoder),
-        'payroll_netpay_json': json.dumps(payroll_netpay, cls=DjangoJSONEncoder),
-        'has_payroll_data': any(payroll_netpay),
-        'enrollment_trend_months_json': json.dumps(enrollment_trend_months, cls=DjangoJSONEncoder),
-        'enrollment_trend_counts_json': json.dumps(enrollment_trend_counts, cls=DjangoJSONEncoder),
-        'has_enrollment_trend_data': any(enrollment_trend_counts),
-        'attendance_trend_months_json': json.dumps(enrollment_trend_months, cls=DjangoJSONEncoder),
-        'attendance_trend_present_json': json.dumps(attendance_trend_present, cls=DjangoJSONEncoder),
-        'attendance_trend_leave_json': json.dumps(attendance_trend_leave, cls=DjangoJSONEncoder),
-        'attendance_trend_absent_json': json.dumps(attendance_trend_absent, cls=DjangoJSONEncoder),
-        'has_attendance_trend_data': any(attendance_trend_present) or any(attendance_trend_leave) or any(attendance_trend_absent),
     })
 
 
@@ -162,34 +106,15 @@ def employee_terminate(request, pk):
 
 @login_required
 @admin_required
-def employee_create_login(request, pk):
-    employee = get_object_or_404(Employee, pk=pk)
-    if request.method == 'POST':
-        form = CreateLoginForm(request.POST)
-        if form.is_valid():
-            user = User.objects.create_user(
-            username=form.cleaned_data['username'],
-            email=form.cleaned_data.get('email', ''),
-            password=form.cleaned_data['password1'],
-            is_staff=False,
-            )
-            employee.user = user
-            employee.save()
-            messages.success(request, f"Login created for {employee.name}. Share the username and password with them securely.")
-            return redirect('employee_detail', pk=employee.pk)
-    else:
-        form = CreateLoginForm()
-    return render(request, 'employees/employee_create_login.html', {'form': form, 'employee': employee})
-
-
-@login_required
-@admin_required
 @require_POST
 def employee_remove_login(request, pk):
     employee = get_object_or_404(Employee, pk=pk)
-    if employee.user:
-        employee.user.delete()
-        employee.user = None
-        employee.save()
+    user = employee.user
+    if user and (user.is_staff or user.is_superuser):
+        messages.error(request, "This login belongs to an administrator; remove it from Django Admin instead.")
+    elif user:
+        # Deleting the user clears Employee.user (SET_NULL) without re-validating older employee records.
+        user.delete()
+        Employee.objects.filter(pk=employee.pk).update(must_change_password=False)
         messages.success(request, f"Login access removed for {employee.name}.")
     return redirect('employee_detail', pk=employee.pk)

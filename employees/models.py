@@ -103,7 +103,11 @@ class Employee(models.Model):
                 super().save(*args, **kwargs)
             # The login follows employment status: inactive employees cannot sign in.
             if self.user_id:
-                type(self.user).objects.filter(pk=self.user_id).update(is_active=self.is_active)
+                logins = type(self.user).objects.filter(pk=self.user_id)
+                logins.update(is_active=self.is_active)
+                if self.email:
+                    # A login without its own email falls back to the HR email, so password resets reach them.
+                    logins.filter(email='').update(email=self.email)
 
     def current_month_leaves(self):
         today = timezone.localdate()

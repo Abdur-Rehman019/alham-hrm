@@ -4,8 +4,6 @@ import logging
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
-from django.core.mail import get_connection
-from django.core.mail.backends.console import EmailBackend as ConsoleEmailBackend
 from django.core.exceptions import ValidationError
 from django.core.mail import EmailMessage
 from django.db.models import Sum
@@ -14,6 +12,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from core.email import email_problem
 from core.middleware import is_admin_user
 from employees.models import Employee
 from .calculations import compute_payroll
@@ -215,15 +214,12 @@ def _send_payslip(payroll, user):
         attempt.error = 'No email address is configured for this employee.'
         attempt.save(update_fields=['error'])
         return False, 'no email address'
+    problem = email_problem()
+    if problem:
+        attempt.error = f'Payslip not sent: {problem}.'
+        attempt.save(update_fields=['error'])
+        return False, problem
     try:
-        if isinstance(get_connection(), ConsoleEmailBackend):
-            attempt.error = (
-                'The console email backend only prints messages to the server terminal; '
-                'configure an SMTP email backend to deliver payslips.'
-            )
-            attempt.save(update_fields=['error'])
-            return False, 'email is not configured for delivery'
-
         pdf = _payslip_pdf_response(payroll).content
         message = EmailMessage(
             subject=f"Your payslip for {calendar.month_name[payroll.month]} {payroll.year}",
@@ -296,7 +292,7 @@ def payslip_email_send(request, pk):
     if success:
         messages.success(request, f"The email server accepted the payslip for {result}. Check the inbox and spam folder if it is not received.")
     else:
-        messages.error(request, f"{payroll.employee.name}: {result}. Approval is required before a payslip can be sent.")
+        messages.error(request, f"{payroll.employee.name}: payslip not sent ({result}).")
     return redirect(f"/payroll/generate/?month={payroll.month}&year={payroll.year}")
 
 

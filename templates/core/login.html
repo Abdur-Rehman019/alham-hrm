@@ -1,8 +1,9 @@
 {% extends 'core/base.html' %}
 {% load static %}
+{% block title %}Sign in · ALHAM HRM{% endblock %}
 {% block guest_content %}
-<div class="d-flex align-items-center justify-content-center" style="min-height:100vh; background: linear-gradient(135deg, #0a1e4d 0%, #063fb0 100%);">
-  <div class="card p-4" style="width: 380px;">
+<div class="auth-page">
+  <div class="card auth-card">
     <div class="text-center mb-3">
       <div style="background:#0a1e4d;border-radius:12px;padding:1rem;margin:0 auto .75rem;max-width:280px;">
         <img src="{% static 'images/logo.svg' %}" alt="Alham" style="display:block;width:100%;max-height:70px;object-fit:contain;">
@@ -10,20 +11,22 @@
       <h4 class="fw-bold mb-1">ALHAM HRM</h4>
       <p class="text-muted small mb-0">Sign in to your account</p>
     </div>
+    {% include 'core/_messages.html' %}
     {% if form.errors %}
-      <div class="alert alert-danger py-2 small">Invalid username or password.</div>
+      <div class="alert alert-danger py-2 small"><i class="bi bi-x-circle-fill"></i> Invalid username or password. Usernames and passwords are case-sensitive.</div>
     {% endif %}
-    <form method="post">
+    <form method="post" novalidate>
       {% csrf_token %}
+      <input type="hidden" name="next" value="{{ next }}">
       <div class="mb-3">
-        <label class="form-label small fw-semibold">Username</label>
-        <input type="text" name="username" class="form-control" required autofocus>
+        <label class="form-label small fw-semibold" for="id_username">Username</label>
+        <input type="text" name="username" id="id_username" class="form-control" value="{{ form.username.value|default:'' }}" autocomplete="username" autocapitalize="none" spellcheck="false" required autofocus>
       </div>
       <div class="mb-3">
-        <label class="form-label small fw-semibold">Password</label>
-        <input type="password" name="password" class="form-control" required>
+        <label class="form-label small fw-semibold" for="id_password">Password</label>
+        <input type="password" name="password" id="id_password" class="form-control" autocomplete="current-password" required>
       </div>
-            <button type="submit" class="btn btn-primary w-100">Login</button>
+      <button type="submit" class="btn btn-primary w-100">Sign in</button>
     </form>
     <div class="text-center mt-3">
       <a href="{% url 'password_reset' %}" class="small">Forgot your password?</a>

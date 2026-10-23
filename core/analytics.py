@@ -67,14 +67,43 @@ def attendance_summary(employee, year, month):
     Present / leave / absent for one month. A working day with no record at all counts as
     absent (today is never counted absent, the day is not over). Sundays are never expected.
     """
-    today = timezone.localdate()
     rows = list(employee.daily_attendance.filter(date__year=year, date__month=month))
+    leave_dates = set(employee.leaves.filter(date__year=year, date__month=month).values_list('date', flat=True))
+    return _summarize(employee, year, month, rows, leave_dates)
+
+
+def attendance_summaries(employees, months):
+    """
+    attendance_summary for many employees and months with two queries in total.
+    Returns {(employee_id, year, month): summary}.
+    """
+    from attendance.models import DailyAttendance, Leave
+
+    employees = list(employees)
+    if not employees or not months:
+        return {}
+    start = month_bounds(*min(months))[0]
+    end = month_bounds(*max(months))[1]
+    ids = [e.pk for e in employees]
+    rows = defaultdict(list)
+    for r in DailyAttendance.objects.filter(employee_id__in=ids, date__range=(start, end)):
+        rows[(r.employee_id, r.date.year, r.date.month)].append(r)
+    leaves = defaultdict(set)
+    for emp_id, d in Leave.objects.filter(employee_id__in=ids, date__range=(start, end)).values_list('employee_id', 'date'):
+        leaves[(emp_id, d.year, d.month)].add(d)
+    return {
+        (e.pk, y, m): _summarize(e, y, m, rows.get((e.pk, y, m), []), leaves.get((e.pk, y, m), set()))
+        for e in employees for y, m in months
+    }
+
+
+def _summarize(employee, year, month, rows, leave_dates):
+    today = timezone.localdate()
     by_date = {r.date: r for r in rows}
     counts = defaultdict(int)
     for r in rows:
         counts[r.status] += 1
 
-    leave_dates = set(employee.leaves.filter(date__year=year, date__month=month).values_list('date', flat=True))
     expected = [d for d in _expected_dates(employee, year, month) if d != today or d in by_date]
     unrecorded_leave = [d for d in expected if d not in by_date and d in leave_dates]
     unrecorded = [d for d in expected if d not in by_date and d not in leave_dates]
@@ -130,15 +159,29 @@ def checkin_series(employee, year, month):
     return [str(r.date.day) for r in rows], [r.check_in_time.hour * 60 + r.check_in_time.minute for r in rows]
 
 
+def monthly_enrollment_totals(qs, months):
+    """{(year, month): (count, incentive total)} for the given months, in one query."""
+    from django.db.models.functions import ExtractMonth, ExtractYear
+    start = month_bounds(*min(months))[0]
+    end = month_bounds(*max(months))[1]
+    rows = (qs.filter(confirmed_on__range=(start, end))
+            .annotate(y=ExtractYear('confirmed_on'), m=ExtractMonth('confirmed_on'))
+            .values('y', 'm').annotate(c=Count('id'), t=Sum('incentive_amount')).order_by())
+    return {(r['y'], r['m']): (r['c'], r['t'] or 0) for r in rows}
+
+
 def employee_trends(employee, year, month, n=6):
     from payroll.models import StudentEnrollment
     t = {'months': [], 'enrollments': [], 'incentives': [], 'present': [], 'leave': [], 'absent': [], 'rate': []}
-    for y, m in back_months(year, month, n):
-        qs = StudentEnrollment.objects.filter(counselor=employee, confirmed_on__year=y, confirmed_on__month=m)
-        s = attendance_summary(employee, y, m)
+    months = back_months(year, month, n)
+    totals = monthly_enrollment_totals(StudentEnrollment.objects.filter(counselor=employee), months)
+    summaries = attendance_summaries([employee], months)
+    for y, m in months:
+        count, incentives = totals.get((y, m), (0, 0))
+        s = summaries[(employee.pk, y, m)]
         t['months'].append(month_label(y, m))
-        t['enrollments'].append(qs.count())
-        t['incentives'].append(float(qs.aggregate(x=Sum('incentive_amount'))['x'] or 0))
+        t['enrollments'].append(count)
+        t['incentives'].append(float(incentives))
         t['present'].append(s['present'])
         t['leave'].append(s['leave'])
         t['absent'].append(s['absent'])

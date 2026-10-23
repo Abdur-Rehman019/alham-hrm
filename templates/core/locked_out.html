@@ -1,0 +1,13 @@
+{% extends 'core/base.html' %}
+{% block title %}Account locked · ALHAM HRM{% endblock %}
+{% block body %}
+<div class="auth-page">
+  <div class="card auth-card text-center">
+    <div class="auth-icon mx-auto" style="background:#fee2e2;color:#b91c1c;"><i class="bi bi-lock-fill"></i></div>
+    <h5 class="fw-bold mb-2">Too many failed sign-in attempts</h5>
+    <p class="text-muted small mb-3">For your security this account is locked for {{ cooloff_timedelta|default:"1 hour" }}. You can reset your password by email, or ask HR to unlock it.</p>
+    <a href="{% url 'password_reset' %}" class="btn btn-primary w-100 mb-2">Reset password</a>
+    <a href="{% url 'login' %}" class="btn btn-outline-secondary w-100">Back to sign in</a>
+  </div>
+</div>
+{% endblock %}

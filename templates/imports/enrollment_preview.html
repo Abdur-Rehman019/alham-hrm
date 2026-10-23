@@ -24,7 +24,7 @@
     {% if sheet.error %}
       <div class="alert alert-danger py-2 small mb-0">{{ sheet.error }}</div>
     {% else %}
-      <table class="table table-sm mb-0">
+      <div class="table-responsive"><table class="table table-sm mb-0">
         <thead><tr><th>Student</th><th>Country</th><th>Confirmed On</th></tr></thead>
         <tbody>
           {% for row in sheet.rows %}
@@ -35,7 +35,7 @@
           </tr>
           {% endfor %}
         </tbody>
-      </table>
+      </table></div>
     {% endif %}
   </div>
   {% endfor %}

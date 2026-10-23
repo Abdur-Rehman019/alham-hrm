@@ -1,0 +1,13 @@
+{% extends 'core/base.html' %}
+{% block title %}{{ title }} · ALHAM HRM{% endblock %}
+{% block body %}
+<div class="auth-page">
+  <div class="card auth-card text-center">
+    <div class="auth-icon mx-auto"><i class="bi bi-exclamation-triangle-fill"></i></div>
+    <div class="text-muted small fw-semibold">Error {{ code }}</div>
+    <h5 class="fw-bold mt-1 mb-2">{{ title }}</h5>
+    <p class="text-muted small mb-3">{{ text }}</p>
+    <a href="/" class="btn btn-primary w-100">Go to home page</a>
+  </div>
+</div>
+{% endblock %}

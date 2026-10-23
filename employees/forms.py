@@ -37,7 +37,7 @@ class CreateLoginForm(forms.Form):
     username = forms.CharField(max_length=150, widget=forms.TextInput(attrs={'class': 'form-control'}))
     email = forms.EmailField(
         required=False,
-        help_text='Needed if this person should be able to use "Forgot password".',
+        help_text='Where password reset links and payslips are sent. Defaults to the email on the employee record.',
         widget=forms.EmailInput(attrs={'class': 'form-control'}),
     )
     password1 = forms.CharField(label='Temporary password', widget=forms.PasswordInput(attrs={'class': 'form-control'}))
