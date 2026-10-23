@@ -94,6 +94,9 @@ class Employee(models.Model):
         if self.leaving_date and self.leaving_date <= timezone.localdate():
             self.is_active = False
 
+        previous_email = (
+            type(self).objects.filter(pk=self.pk).values_list('email', flat=True).first() if self.pk else None
+        )
         with transaction.atomic():
             if not self.employee_id:
                 super().save(*args, **kwargs)
@@ -106,8 +109,13 @@ class Employee(models.Model):
                 logins = type(self.user).objects.filter(pk=self.user_id)
                 logins.update(is_active=self.is_active)
                 if self.email:
-                    # A login without its own email falls back to the HR email, so password resets reach them.
-                    logins.filter(email='').update(email=self.email)
+                    # Keep the login's email in step with the HR record: fill it when empty, and follow
+                    # the HR email when it changes, so password resets and payslips reach the new address.
+                    from django.db.models import Q
+                    stale = Q(email='')
+                    if previous_email and previous_email != self.email:
+                        stale |= Q(email__iexact=previous_email)
+                    logins.filter(stale).update(email=self.email)
 
     def current_month_leaves(self):
         today = timezone.localdate()

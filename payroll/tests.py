@@ -19,10 +19,10 @@ from payroll.views import _calculate_and_save_payroll
 
 class PayrollWorkflowTests(TestCase):
     def setUp(self):
-        self.admin = User.objects.create_superuser('payroll-admin', 'admin@example.com', 'StrongPass!123')
+        self.admin = User.objects.create_superuser('payroll-admin', 'admin@alham.pk', 'StrongPass!123')
         self.employee = Employee.objects.create(
             name='Salary Employee', role='counselor', monthly_salary='30000',
-            joined_on=timezone.localdate(), email='personal@example.com',
+            joined_on=timezone.localdate(), email='personal@alham.pk',
         )
         self.client.force_login(self.admin)
 
@@ -93,8 +93,10 @@ class PayrollWorkflowTests(TestCase):
         self.assertEqual(fixed.incentive_amount, Decimal('500'))
 
     @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
-    def test_email_attachment_and_login_email_preference(self):
-        self.employee.user = User.objects.create_user('staff-login', email='login@example.com', password='StrongPass!123')
+    def test_email_attachment_and_hr_email_preference(self):
+        # The HR record's email wins: it is the one admins edit. (alham.pk is reserved, so use real-looking domains.)
+        self.employee.email = 'personal@alham.pk'
+        self.employee.user = User.objects.create_user('staff-login', email='login@alham.pk', password='StrongPass!123')
         self.employee.save()
         today = timezone.localdate()
         payroll, _ = _calculate_and_save_payroll(self.employee, today.year, today.month)
@@ -102,7 +104,7 @@ class PayrollWorkflowTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(len(mail.outbox), 1)
         message = mail.outbox[0]
-        self.assertEqual(message.to, ['login@example.com'])
+        self.assertEqual(message.to, ['personal@alham.pk'])
         self.assertIn(f"Your payslip for {calendar.month_name[today.month]} {today.year}", message.subject)
         self.assertTrue(message.attachments[0][0].endswith('.pdf'))
         self.assertTrue(message.attachments[0][2] == 'application/pdf')
@@ -111,7 +113,7 @@ class PayrollWorkflowTests(TestCase):
         self.assertNotIn('.00', message.body)
         attempt = payroll.email_attempts.get()
         self.assertTrue(attempt.success)
-        self.assertEqual(attempt.recipient, 'login@example.com')
+        self.assertEqual(attempt.recipient, 'personal@alham.pk')
         payroll.refresh_from_db()
         self.assertTrue(payroll.is_approved)
         self.assertEqual(payroll.approved_by, self.admin)
@@ -144,7 +146,7 @@ class PayrollWorkflowTests(TestCase):
         self.assertIn('No email', attempt.error)
         payroll.refresh_from_db()
         self.assertTrue(payroll.is_approved)
-        self.employee.email = 'personal@example.com'
+        self.employee.email = 'personal@alham.pk'
         self.employee.save()
         response = self.client.post(f'/payroll/payslip/{payroll.pk}/email/')
         self.assertEqual(response.status_code, 302)

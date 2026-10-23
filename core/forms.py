@@ -4,6 +4,8 @@ from django.core.mail import EmailMultiAlternatives
 from django.db.models import Q
 from django.template import loader
 
+from .email import undeliverable_reason
+
 
 class EmployeePasswordResetForm(PasswordResetForm):
     """
@@ -19,10 +21,13 @@ class EmployeePasswordResetForm(PasswordResetForm):
         for user in users:
             if not user.has_usable_password():
                 continue
-            if not user.email:
-                # Send to the address that matched, and keep it on the login for next time.
+            if user.email.lower() != email.lower():
+                # Matched through the HR record: send to that address, not the login's own one.
+                if not user.email or undeliverable_reason(user.email):
+                    type(user).objects.filter(pk=user.pk).update(email=email)
                 user.email = email
-                type(user).objects.filter(pk=user.pk).update(email=email)
+            if undeliverable_reason(user.email):
+                continue  # demo/placeholder address: nothing could ever arrive
             yield user
 
     def send_mail(self, subject_template_name, email_template_name, context, from_email, to_email,

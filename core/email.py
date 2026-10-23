@@ -38,6 +38,21 @@ def email_problem():
     return None
 
 
+# Domains reserved for examples and testing (RFC 2606 / 6761); mail to them can never be delivered.
+RESERVED_SUFFIXES = ('.invalid', '.test', '.example', '.localhost', '.local')
+RESERVED_DOMAINS = {'example.com', 'example.net', 'example.org', 'localhost'}
+
+
+def undeliverable_reason(address):
+    """Why this address can never receive mail (e.g. a demo address), or None."""
+    domain = address.rsplit('@', 1)[-1].strip().lower() if '@' in address else ''
+    if not domain:
+        return f'"{address}" is not a valid email address'
+    if domain in RESERVED_DOMAINS or domain.endswith(RESERVED_SUFFIXES):
+        return f'{address} is a placeholder address that cannot receive email; enter a real email on the employee record'
+    return None
+
+
 def _address(value):
     name, email = parseaddr(value)
     return {'email': email, 'name': name} if name else {'email': email}
