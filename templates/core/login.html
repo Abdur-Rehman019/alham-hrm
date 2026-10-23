@@ -20,7 +20,7 @@
       <input type="hidden" name="next" value="{{ next }}">
       <div class="mb-3">
         <label class="form-label small fw-semibold" for="id_username">Username</label>
-        <input type="text" name="username" id="id_username" class="form-control" value="{{ form.username.value|default:'' }}" autocomplete="username" autocapitalize="none" spellcheck="false" required autofocus>
+        <input type="text" name="username" id="id_username" class="form-control" value="{% firstof form.username.value request.GET.username '' %}" autocomplete="username" autocapitalize="none" spellcheck="false" required autofocus>
       </div>
       <div class="mb-3">
         <label class="form-label small fw-semibold" for="id_password">Password</label>

@@ -88,7 +88,18 @@ class PasswordResetConfirmView(auth_views.PasswordResetConfirmView):
         Employee.objects.filter(user=user).update(must_change_password=False)
         from axes.utils import reset
         reset(username=user.get_username())
+        # Several accounts can share one email; say exactly which one was changed.
+        self.request.session['reset_username'] = user.get_username()
         return response
+
+
+class PasswordResetCompleteView(auth_views.PasswordResetCompleteView):
+    template_name = 'core/password_reset_complete.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['reset_username'] = self.request.session.pop('reset_username', '')
+        return context
 
 
 def page_not_found(request, exception):

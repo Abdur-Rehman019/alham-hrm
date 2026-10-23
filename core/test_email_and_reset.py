@@ -72,11 +72,20 @@ class PasswordResetTests(TestCase):
         response = self.client.get('/' + path, follow=True)
         new = 'An0ther!Pass#2026'
         response = self.client.post(response.redirect_chain[-1][0], {'new_password1': new, 'new_password2': new})
-        self.assertRedirects(response, '/accounts/reset/done/')
+        self.assertRedirects(response, '/accounts/reset/done/', fetch_redirect_response=False)
         self.employee.refresh_from_db()
         self.assertFalse(self.employee.must_change_password)
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password(new))
+        done = self.client.get('/accounts/reset/done/')
+        self.assertContains(done, 'The password for <strong>ana</strong> has been changed')
+
+    @override_settings(EMAIL_BACKEND=LOCMEM)
+    def test_shared_email_sends_one_clearly_labelled_link_per_account(self):
+        User.objects.create_superuser('boss', 'ana@example.com', PW)
+        self.client.post('/accounts/password-reset/', {'email': 'ana@example.com'})
+        subjects = sorted(m.subject for m in mail.outbox)
+        self.assertEqual(subjects, ['ALHAM HRM — Password reset for ana', 'ALHAM HRM — Password reset for boss'])
 
 
 class BrevoBackendTests(TestCase):
