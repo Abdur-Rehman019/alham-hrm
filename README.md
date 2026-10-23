@@ -58,6 +58,14 @@ python manage.py seed_demo_data --months 6 --create-logins
 
 This command refuses to run unless `DEBUG=True` and the database is SQLite. It creates demo-only employee profiles and never seeds existing employees. It prints random temporary passwords for the demo portal accounts; change them at first sign-in. The demo email addresses use the reserved `.invalid` domain, so payslip emails cannot reach real recipients. Do not run demo data commands against production.
 
+If you explicitly need sample records in a Railway PostgreSQL environment, deploy this code first, back up the database, then run a one-time command inside the web service using the Railway CLI:
+
+```powershell
+railway ssh --service <web-service-name> -- python manage.py seed_demo_data --months 6 --allow-production
+```
+
+Production seeding requires `DEBUG=False` and PostgreSQL, is wrapped in one transaction, creates no demo logins, and does not create or modify shared incentive rules. It adds only the clearly named demo employees and their synthetic attendance, enrollments, and unapproved payroll rows. These rows appear in live reports, so use a separate staging database instead if production reports must contain only real business data. The command is idempotent and safe to rerun for the same date range.
+
 ## Configuration
 
 | Variable | Purpose |

@@ -1,15 +1,17 @@
 from io import StringIO
 from datetime import timedelta
+from unittest import mock
 
 from django.contrib.auth.models import User
 from django.core.management import call_command, CommandError
+from django.db import connection
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from attendance.models import DailyAttendance, Leave
 from employees.models import Employee
 from payroll.calculations import compute_payroll
-from payroll.models import Payroll, StudentEnrollment
+from payroll.models import IncentiveRule, Payroll, StudentEnrollment
 
 
 class SeedDemoDataTests(TestCase):
@@ -67,3 +69,24 @@ class SeedDemoDataTests(TestCase):
         with self.assertRaises(CommandError):
             call_command('seed_demo_data', months=1, stdout=StringIO())
         self.assertFalse(Employee.objects.filter(name__startswith='Demo -').exists())
+
+    @override_settings(DEBUG=False)
+    def test_production_seed_requires_explicit_flag_and_avoids_shared_rules_and_logins(self):
+        with mock.patch.object(connection, 'vendor', 'postgresql'):
+            with self.assertRaises(CommandError):
+                call_command('seed_demo_data', months=1, stdout=StringIO())
+            with self.assertRaises(CommandError):
+                call_command(
+                    'seed_demo_data', months=1, allow_production=True,
+                    create_logins=True, stdout=StringIO(),
+                )
+            call_command(
+                'seed_demo_data', months=1, allow_production=True, stdout=StringIO()
+            )
+
+        demo_employees = Employee.objects.filter(name__startswith='Demo -')
+        self.assertEqual(demo_employees.count(), 6)
+        self.assertFalse(IncentiveRule.objects.exists())
+        self.assertFalse(User.objects.filter(username__startswith='demo_').exists())
+        self.assertFalse(DailyAttendance.objects.filter(employee=self.existing_employee).exists())
+        self.assertFalse(Payroll.objects.filter(employee=self.existing_employee).exists())

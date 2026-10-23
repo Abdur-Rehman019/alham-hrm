@@ -7,7 +7,7 @@ from datetime import date, timedelta
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
-from django.db import connection
+from django.db import connection, transaction
 from django.utils import timezone
 
 from attendance.models import Leave, DailyAttendance
@@ -43,8 +43,7 @@ class Command(BaseCommand):
     help = (
         "Populates realistic demo data across the last 6 months: employees, daily "
         "attendance, leaves, student enrollments, incentives and payroll. "
-        "Runs only against a local debug SQLite database and never adds data to "
-        "existing employee profiles."
+        "Never adds generated records to existing employee profiles."
     )
 
     def add_arguments(self, parser):
@@ -56,36 +55,57 @@ class Command(BaseCommand):
             '--create-logins', action='store_true',
             help='Create employee portal logins and print one-time temporary passwords.'
         )
+        parser.add_argument(
+            '--allow-production', action='store_true',
+            help='Explicitly allow seeding PostgreSQL while DEBUG=False. Does not create logins or incentive rules.'
+        )
 
     def handle(self, *args, **options):
         months_back = options['months']
-        if not settings.DEBUG or connection.vendor != 'sqlite':
+        production_target = not settings.DEBUG and connection.vendor == 'postgresql'
+        local_target = settings.DEBUG and connection.vendor == 'sqlite'
+        if production_target and not options['allow_production']:
             raise CommandError(
-                'Demo data can only be generated with DEBUG=True on a SQLite database.'
+                'Production seeding requires the explicit --allow-production flag.'
+            )
+        if production_target and options['create_logins']:
+            raise CommandError(
+                'Demo login creation is disabled for production databases.'
+            )
+        if not (local_target or (production_target and options['allow_production'])):
+            raise CommandError(
+                'Demo data can only be generated on local DEBUG SQLite, or on PostgreSQL '
+                'with DEBUG=False and the explicit --allow-production flag.'
             )
         if not 1 <= months_back <= 24:
             raise CommandError('--months must be between 1 and 24.')
 
         random.seed(42)
 
-        employees = self._ensure_employees()
-        self._ensure_incentive_rules()
-        if options['create_logins']:
-            self._ensure_logins(employees)
+        with transaction.atomic():
+            employees = self._ensure_employees()
+            if production_target:
+                self.destinations = self._configured_destinations()
+            else:
+                self._ensure_incentive_rules()
+                self.destinations = DESTINATIONS
 
-        today = timezone.localdate()
-        for i in range(months_back - 1, -1, -1):
-            month = today.month - i
-            year = today.year
-            while month <= 0:
-                month += 12
-                year -= 1
-            self.stdout.write(f"Generating data for {calendar.month_name[month]} {year}...")
-            self._generate_month(employees, year, month)
+            if options['create_logins']:
+                self._ensure_logins(employees)
 
-        self.stdout.write(self.style.SUCCESS(
-            f"Demo data generated for {len(employees)} employees across {months_back} months."
-        ))
+            today = timezone.localdate()
+            for i in range(months_back - 1, -1, -1):
+                month = today.month - i
+                year = today.year
+                while month <= 0:
+                    month += 12
+                    year -= 1
+                self.stdout.write(f"Generating data for {calendar.month_name[month]} {year}...")
+                self._generate_month(employees, year, month)
+
+            self.stdout.write(self.style.SUCCESS(
+                f"Demo data generated for {len(employees)} employees across {months_back} months."
+            ))
 
     def _ensure_employees(self):
         employees = []
@@ -139,6 +159,17 @@ class Command(BaseCommand):
         for country, amount in DESTINATIONS.items():
             if not IncentiveRule.objects.filter(destination_country__iexact=country).exists():
                 IncentiveRule.objects.create(destination_country=country, amount=amount)
+
+    def _configured_destinations(self):
+        configured = {
+            rule.destination_country.lower(): rule.destination_country
+            for rule in IncentiveRule.objects.all()
+        }
+        return {
+            country: amount
+            for country, amount in DESTINATIONS.items()
+            if country.lower() in configured
+        }
 
     def _generate_month(self, employees, year, month):
         days_in_month = calendar.monthrange(year, month)[1]
@@ -194,7 +225,7 @@ class Command(BaseCommand):
                 num_enrollments = random.choice([0, 1, 1, 2, 2, 3])
                 for _ in range(num_enrollments):
                     student_name = f"{random.choice(FIRST_NAMES)} {random.choice(LAST_NAMES)}"
-                    country = random.choice(list(DESTINATIONS.keys()))
+                    country = random.choice(list(self.destinations.keys()) or list(DESTINATIONS.keys()))
                     confirmed_day = random.randint(1, min(days_in_month, today.day if (year, month) == (today.year, today.month) else days_in_month))
                     StudentEnrollment.objects.get_or_create(
                         student_name=student_name, counselor=emp, confirmed_on=date(year, month, confirmed_day),
