@@ -114,7 +114,9 @@ OFFICE_END = datetime.time.fromisoformat(config('OFFICE_END', default='18:00'))
 CHECK_IN_OPENS = datetime.time.fromisoformat(config('CHECK_IN_OPENS', default='08:00'))
 LATE_GRACE_MINUTES = config('LATE_GRACE_MINUTES', default=15, cast=int)
 
-# Signature block on certificates. Put a transparent PNG at static/images/ceo_signature.png to print a signature.
+# Signature block on certificates. The signature image is private (the repository is public): on Railway it
+# is the base64 PNG in CERTIFICATE_SIGNATURE_B64; locally, private/ceo_signature.png (git-ignored).
+CERTIFICATE_SIGNATURE_B64 = config('CERTIFICATE_SIGNATURE_B64', default='')
 CERTIFICATE_SIGNATORY_NAME = config('CERTIFICATE_SIGNATORY_NAME', default='Dr. Ali Aslam')
 CERTIFICATE_SIGNATORY_TITLE = config('CERTIFICATE_SIGNATORY_TITLE', default='Chief Executive Officer')
 

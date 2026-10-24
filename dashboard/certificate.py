@@ -2,7 +2,10 @@
 Counselor of the Month certificate (A4 landscape), in the style of ALHAM's promotion certificate:
 blue patterned frame, white card, blue logo, gold medal, faint "A" mark, gold script name.
 """
+import base64
 import functools
+import io
+import logging
 import math
 from pathlib import Path
 
@@ -13,6 +16,8 @@ from reportlab.lib.utils import ImageReader
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas as pdf_canvas
+
+logger = logging.getLogger(__name__)
 
 BLUE = HexColor('#1546b0')
 BLUE_DARK = HexColor('#0f3a94')
@@ -27,7 +32,19 @@ GOLD_DARK = HexColor('#9a6a1f')
 
 STATIC = Path(settings.BASE_DIR) / 'static'
 SCRIPT_FONT_FILE = STATIC / 'fonts' / 'GreatVibes-Regular.ttf'
-SIGNATURE_FILE = STATIC / 'images' / 'ceo_signature.png'
+SIGNATURE_FILE = Path(settings.BASE_DIR) / 'private' / 'ceo_signature.png'  # git-ignored, never public
+
+
+@functools.lru_cache(maxsize=1)
+def _signature():
+    """The CEO's signature from the private Railway variable, or the local private file; None if neither."""
+    if settings.CERTIFICATE_SIGNATURE_B64:
+        try:
+            return ImageReader(io.BytesIO(base64.b64decode(settings.CERTIFICATE_SIGNATURE_B64)))
+        except Exception:
+            logger.exception('CERTIFICATE_SIGNATURE_B64 is not a valid base64 PNG; printing a signature line instead')
+            return None
+    return ImageReader(str(SIGNATURE_FILE)) if SIGNATURE_FILE.exists() else None
 
 
 @functools.lru_cache(maxsize=1)
@@ -211,10 +228,11 @@ def draw_counselor_certificate(response, name, period_label, enrollment_count):
 
     # Signature block.
     sig_y = inner_y + 52
-    if SIGNATURE_FILE.exists():
-        sig = ImageReader(str(SIGNATURE_FILE))
+    sig = _signature()
+    if sig is not None:
         sw, sh = sig.getSize()
-        c.drawImage(sig, cx - 55, sig_y + 14, width=110, height=110 * sh / sw, mask='auto')
+        sig_w = 118
+        c.drawImage(sig, cx - sig_w / 2, sig_y + 12, width=sig_w, height=sig_w * sh / sw, mask='auto')
     else:
         c.setStrokeColor(GREY)
         c.setLineWidth(0.8)

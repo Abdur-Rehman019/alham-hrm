@@ -12,3 +12,5 @@ staticfiles/
 *.pdf
 *.xlsx
 !UAT_ALHAM_HRM.xlsx
+# Never commit: signature images and other private assets (this repository is public)
+private/
