@@ -2,6 +2,27 @@ from django.conf import settings
 from django.db import models
 
 
+class TrustedDevice(models.Model):
+    """
+    A computer where an admin ticked "Remember this computer": the two-factor code is skipped there
+    until it expires. Only a hash of the cookie is stored. It stops working when the password changes
+    (auth_hash no longer matches), when two-factor is reset, or when the user signs out on it.
+    """
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='trusted_devices')
+    token_hash = models.CharField(max_length=64, unique=True)
+    auth_hash = models.CharField(max_length=128)
+    description = models.CharField(max_length=200, blank=True, help_text='Browser, from the user agent.')
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField()
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user} · {self.description or 'computer'} · until {self.expires_at:%d %b %Y}"
+
+
 class AuditLog(models.Model):
     """
     Who changed what, and when: employees, salaries, payroll, incentives and login accounts.

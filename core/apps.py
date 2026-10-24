@@ -8,8 +8,9 @@ class CoreConfig(AppConfig):
 
     def ready(self):
         register(check_email_delivery)
-        from . import audit
+        from . import audit, two_factor
         audit.connect()
+        two_factor.connect_signals()
 
 
 def check_email_delivery(app_configs, **kwargs):

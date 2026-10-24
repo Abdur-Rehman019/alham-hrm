@@ -13,6 +13,25 @@
     <input type="hidden" name="action" value="backup_codes">
     <button type="submit" class="btn btn-outline-primary"><i class="bi bi-arrow-repeat"></i> Make new backup codes</button>
   </form>
+  <h6 class="fw-semibold">Remembered computers</h6>
+  <p class="small text-muted mb-2">These skip the code for {{ trusted_days }} days. Signing out on a computer, changing your password or resetting two-factor forgets them.</p>
+  {% if trusted %}
+    <ul class="list-unstyled small mb-2">
+      {% for t in trusted %}
+        <li class="border rounded p-2 mb-1">
+          <i class="bi bi-laptop"></i> {{ t.description|truncatechars:70|default:"Unknown browser" }}
+          {% if t.token_hash == current_hash %}<span class="badge bg-primary">this computer</span>{% endif %}<br>
+          <span class="text-muted">Remembered {{ t.created_at|date:"d M Y" }} · last used {{ t.last_used_at|date:"d M Y"|default:"not yet" }} · until {{ t.expires_at|date:"d M Y" }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+    <form method="post" class="mb-4">{% csrf_token %}<input type="hidden" name="action" value="forget_all">
+      <button type="submit" class="btn btn-outline-danger btn-sm"><i class="bi bi-x-circle"></i> Forget all remembered computers</button>
+    </form>
+  {% else %}
+    <p class="small mb-4">None. Tick "Remember this computer" when you enter your code.</p>
+  {% endif %}
+
   <h6 class="fw-semibold">New phone, or a colleague lost theirs?</h6>
   <p class="small text-muted mb-0">A superuser opens <strong>Django Admin → TOTP devices</strong> and deletes that person's device. At their next sign-in they scan a new QR code. If the only superuser is locked out, run <code>python manage.py reset_two_factor &lt;username&gt;</code> on the server.</p>
 </div>

@@ -45,6 +45,12 @@ class RoleAccessMiddleware:
     def __call__(self, request):
         return self.get_response(request)
 
+    @staticmethod
+    def _remembered(request):
+        """A computer where this admin ticked "Remember this computer" counts as verified."""
+        from .two_factor import trust_from_cookie
+        return trust_from_cookie(request)
+
     def process_view(self, request, view_func, view_args, view_kwargs):
         user = request.user
         if not user.is_authenticated:
@@ -54,7 +60,7 @@ class RoleAccessMiddleware:
         url_name = request.resolver_match.url_name if request.resolver_match else None
 
         if (is_admin_user(user) and settings.ADMIN_2FA_REQUIRED and not user.is_verified()
-                and url_name not in TWO_FACTOR_ALLOWED_URL_NAMES):
+                and url_name not in TWO_FACTOR_ALLOWED_URL_NAMES and not self._remembered(request)):
             from .two_factor import has_two_factor
             target = 'two_factor_verify' if has_two_factor(user) else 'two_factor_setup'
             next_path = request.get_full_path()
