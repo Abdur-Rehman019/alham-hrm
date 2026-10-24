@@ -8,6 +8,8 @@ class CoreConfig(AppConfig):
 
     def ready(self):
         register(check_email_delivery)
+        from . import audit
+        audit.connect()
 
 
 def check_email_delivery(app_configs, **kwargs):

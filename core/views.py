@@ -7,7 +7,9 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordChangeForm
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
+from django.core.paginator import Paginator
 from django.db import connection
+from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
@@ -16,6 +18,7 @@ from employees.models import Employee
 from .email import email_problem
 from .forms import EmployeePasswordResetForm
 from .middleware import client_ip, is_admin_user
+from .models import AuditLog
 
 logger = logging.getLogger(__name__)
 RESET_REQUESTS_PER_HOUR = 5
@@ -64,6 +67,24 @@ class PasswordResetView(auth_views.PasswordResetView):
             logger.exception('Password reset email could not be sent')
             form.add_error(None, 'We could not send the email right now. Please try again later or ask HR to reset your password.')
             return self.form_invalid(form)
+
+
+@login_required
+def audit_log(request):
+    """Read-only history of employee, salary, payroll, incentive and login changes."""
+    if not is_admin_user(request.user):
+        return redirect('post_login_redirect')
+    entries = AuditLog.objects.select_related('actor')
+    category = request.GET.get('category', '')
+    if category in dict(AuditLog.CATEGORY_CHOICES):
+        entries = entries.filter(category=category)
+    query = request.GET.get('q', '').strip()
+    if query:
+        entries = entries.filter(Q(object_repr__icontains=query) | Q(actor_name__icontains=query) | Q(note__icontains=query))
+    page = Paginator(entries, 50).get_page(request.GET.get('page'))
+    return render(request, 'core/audit_log.html', {
+        'page': page, 'category': category, 'query': query, 'categories': AuditLog.CATEGORY_CHOICES,
+    })
 
 
 class PasswordResetConfirmView(auth_views.PasswordResetConfirmView):

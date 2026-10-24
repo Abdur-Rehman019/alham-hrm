@@ -12,6 +12,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from core import audit
 from core.email import email_problem, undeliverable_reason
 from core.middleware import is_admin_user
 from employees.models import Employee
@@ -191,6 +192,12 @@ def payroll_generate(request):
 
 
 def _send_payslip(payroll, user):
+    success, result = _deliver_payslip(payroll, user)
+    audit.record(payroll, 'payslip', note=f'Sent to {result}' if success else f'Not sent: {result}')
+    return success, result
+
+
+def _deliver_payslip(payroll, user):
     # The HR record is what admins keep up to date, so it wins over the login's own email.
     recipient = payroll.employee.email or (payroll.employee.user.email if payroll.employee.user_id else '') or ''
     attempt = PayslipEmail.objects.create(

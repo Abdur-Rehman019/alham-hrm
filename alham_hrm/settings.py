@@ -2,6 +2,7 @@
 Django settings for alham_hrm project.
 """
 
+import datetime
 import sys
 from pathlib import Path
 from decouple import config, Csv
@@ -26,6 +27,9 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'axes',
+    'django_otp',
+    'django_otp.plugins.otp_totp',
+    'django_otp.plugins.otp_static',
     'core',
     'employees',
     'attendance',
@@ -38,6 +42,10 @@ AUTHENTICATION_BACKENDS = [
     'axes.backends.AxesStandaloneBackend',
     'django.contrib.auth.backends.ModelBackend',
 ]
+
+# Admin and staff accounts must confirm each sign-in with an authenticator app code (or a backup code).
+ADMIN_2FA_REQUIRED = config('ADMIN_2FA_REQUIRED', default=True, cast=bool)
+OTP_TOTP_ISSUER = 'ALHAM HRM'
 
 AXES_FAILURE_LIMIT = 5
 AXES_COOLOFF_TIME = 1
@@ -55,6 +63,8 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django_otp.middleware.OTPMiddleware',
+    'core.audit.AuditMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'core.middleware.RoleAccessMiddleware',
@@ -95,6 +105,12 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
+
+# Office hours 10:00-18:00 with a 15-minute margin: a check-in at 10:15 is on time, 10:16 is late.
+# No self check-ins are accepted after OFFICE_END.
+OFFICE_START = datetime.time.fromisoformat(config('OFFICE_START', default='10:00'))
+OFFICE_END = datetime.time.fromisoformat(config('OFFICE_END', default='18:00'))
+LATE_GRACE_MINUTES = config('LATE_GRACE_MINUTES', default=15, cast=int)
 
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'Asia/Karachi'
@@ -179,3 +195,5 @@ CACHES = {'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'
 # Password hashing is deliberately slow; tests do not need that and run far faster without it.
 if len(sys.argv) > 1 and sys.argv[1] == 'test':
     PASSWORD_HASHERS = ['django.contrib.auth.hashers.MD5PasswordHasher']
+    # Most tests sign admins in directly; the two-factor tests switch this back on.
+    ADMIN_2FA_REQUIRED = False

@@ -1,5 +1,9 @@
+from urllib.parse import urlencode
+
+from django.conf import settings
 from django.contrib import messages
 from django.shortcuts import redirect
+from django.urls import reverse
 
 # Everything an employee (non-admin) account may reach. All other pages redirect back to the portal.
 COUNSELOR_ALLOWED_URL_NAMES = {
@@ -10,6 +14,8 @@ COUNSELOR_ALLOWED_URL_NAMES = {
 }
 # While a temporary password is still in use, only these are reachable.
 FORCED_CHANGE_ALLOWED_URL_NAMES = {'change_password', 'logout'}
+# Until an admin has entered their authenticator code this session, only these are reachable.
+TWO_FACTOR_ALLOWED_URL_NAMES = {'two_factor_setup', 'two_factor_verify', 'logout'}
 
 
 def client_ip(request):
@@ -27,9 +33,10 @@ def is_admin_user(user):
 
 class RoleAccessMiddleware:
     """
-    1. A user still on a temporary password is sent to the change-password page.
-    2. Employee accounts can only reach their own portal pages.
-    Admin/staff accounts are never restricted by rule 2.
+    1. An admin/staff account must enter its authenticator code (or set one up) before anything else.
+    2. A user still on a temporary password is sent to the change-password page.
+    3. Employee accounts can only reach their own portal pages.
+    Admin/staff accounts are never restricted by rule 3.
     """
 
     def __init__(self, get_response):
@@ -45,6 +52,15 @@ class RoleAccessMiddleware:
         if request.path.startswith(('/static/', '/media/')):
             return None
         url_name = request.resolver_match.url_name if request.resolver_match else None
+
+        if (is_admin_user(user) and settings.ADMIN_2FA_REQUIRED and not user.is_verified()
+                and url_name not in TWO_FACTOR_ALLOWED_URL_NAMES):
+            from .two_factor import has_two_factor
+            target = 'two_factor_verify' if has_two_factor(user) else 'two_factor_setup'
+            next_path = request.get_full_path()
+            if url_name in (None, 'post_login_redirect') or request.method != 'GET':
+                return redirect(target)
+            return redirect(f"{reverse(target)}?{urlencode({'next': next_path})}")
 
         profile = getattr(user, 'employee_profile', None)
         if profile is not None and profile.must_change_password and url_name not in FORCED_CHANGE_ALLOWED_URL_NAMES:

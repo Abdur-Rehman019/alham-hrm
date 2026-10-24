@@ -1,0 +1,38 @@
+{% extends 'core/base.html' %}
+{% block title %}Set up two-factor sign-in · ALHAM HRM{% endblock %}
+{% block body %}
+<div class="auth-page">
+  <div class="card auth-card" style="max-width:440px;">
+    <div class="text-center mb-2">
+      <div class="auth-icon mx-auto"><i class="bi bi-shield-lock-fill"></i></div>
+      <h5 class="fw-bold mb-1">Protect your admin account</h5>
+      <p class="text-muted small mb-0">Admin accounts can see every salary, so each sign-in also needs a code from your phone.</p>
+    </div>
+    <ol class="small ps-3 mb-3">
+      <li class="mb-1">Install <strong>Google Authenticator</strong> or <strong>Microsoft Authenticator</strong> on your phone.</li>
+      <li class="mb-1">In the app, tap <strong>+</strong> and scan this code.</li>
+      <li>Type the 6-digit code the app shows.</li>
+    </ol>
+    <div class="text-center mb-2">
+      <div class="d-inline-block bg-white p-2 rounded border" style="width:200px;height:200px;" aria-label="QR code for your authenticator app">{{ qr_svg|safe }}</div>
+    </div>
+    <details class="small text-center mb-3">
+      <summary class="text-primary" style="cursor:pointer;">Can't scan? Enter this key instead</summary>
+      <code class="d-block mt-2 user-select-all" style="font-size:.95rem;letter-spacing:.05em;">{{ manual_key }}</code>
+      <span class="text-muted">Account: {{ user.get_username }} · Type: time-based</span>
+    </details>
+    {% if error %}<div class="alert alert-danger py-2 small"><i class="bi bi-x-circle-fill"></i> {{ error }}</div>{% endif %}
+    <form method="post">
+      {% csrf_token %}
+      <label class="form-label small fw-semibold" for="id_code">6-digit code</label>
+      <input type="text" name="code" id="id_code" class="form-control form-control-lg text-center mb-3" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]{6,7}" maxlength="7" required autofocus style="letter-spacing:.3em;">
+      <button type="submit" class="btn btn-primary w-100">Turn on two-factor sign-in</button>
+    </form>
+    <form method="post" action="{% url 'logout' %}" class="text-center mt-3">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-link btn-sm text-muted">Sign out</button>
+    </form>
+  </div>
+</div>
+<style>.auth-card svg { width: 100%; height: 100%; }</style>
+{% endblock %}

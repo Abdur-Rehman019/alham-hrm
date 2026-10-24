@@ -209,13 +209,11 @@ class Command(BaseCommand):
                 else:
                     hour = 10 if random.random() < 0.6 else 11
                     minute = random.randint(0, 45)
-                    is_late = hour == 11 and minute > 30
                     DailyAttendance.objects.get_or_create(
                         employee=emp, date=the_date,
                         defaults={
                             'status': 'present',
                             'check_in_time': f"{hour:02d}:{minute:02d}:00",
-                            'is_late': is_late,
                             'imported': False,
                         }
                     )

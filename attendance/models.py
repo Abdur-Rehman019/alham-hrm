@@ -6,6 +6,22 @@ from employees.models import Employee
 FREE_LEAVES_PER_MONTH = 2
 
 
+def is_late_check_in(check_in_time):
+    """
+    Late means after office start plus the grace period: 10:00 + 15 minutes, so 10:15 is still
+    on time and 10:16 is late. Seconds are ignored.
+    """
+    import datetime
+    from django.conf import settings
+    if not check_in_time:
+        return False
+    if isinstance(check_in_time, str):
+        check_in_time = datetime.time.fromisoformat(check_in_time)
+    start = datetime.datetime.combine(datetime.date.today(), settings.OFFICE_START)
+    cutoff = (start + datetime.timedelta(minutes=settings.LATE_GRACE_MINUTES)).time()
+    return check_in_time.replace(second=0, microsecond=0, tzinfo=None) > cutoff
+
+
 class Leave(models.Model):
     LEAVE_TYPE_CHOICES = [
         ('casual', 'Casual'),
@@ -65,6 +81,14 @@ class DailyAttendance(models.Model):
         ordering = ['-date']
         unique_together = ('employee', 'date')
         verbose_name_plural = 'Daily attendance'
+
+    def save(self, *args, **kwargs):
+        # One rule for self check-in, imports and admin edits alike.
+        self.is_late = is_late_check_in(self.check_in_time) if self.status == 'present' else False
+        update_fields = kwargs.get('update_fields')
+        if update_fields is not None and 'is_late' not in update_fields:
+            kwargs['update_fields'] = [*update_fields, 'is_late']
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.employee.name} - {self.date} - {self.status}"

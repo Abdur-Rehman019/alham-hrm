@@ -181,10 +181,14 @@
   <a href="{% url 'enrollment_import' %}" class="{% if url_name == 'enrollment_import' %}active{% endif %}"><i class="bi bi-file-earmark-arrow-up-fill"></i> Import Enrollments</a>
   <a href="{% url 'attendance_import' %}" class="{% if url_name == 'attendance_import' %}active{% endif %}"><i class="bi bi-file-earmark-arrow-up-fill"></i> Import Attendance</a>
 
+  <div class="nav-section-label">Security</div>
+  <a href="{% url 'audit_log' %}" class="{% if url_name == 'audit_log' %}active{% endif %}"><i class="bi bi-journal-text"></i> Audit Log</a>
+
   <div class="sidebar-footer">
     <a href="/admin/" target="_blank" rel="noopener"><i class="bi bi-gear-fill"></i> Django Admin</a>
     <hr style="border-color:rgba(255,255,255,0.15);">
     <a href="{% url 'change_password' %}" class="{% if url_name == 'change_password' %}active{% endif %}"><i class="bi bi-shield-lock-fill"></i> Change password</a>
+    <a href="{% url 'two_factor_manage' %}" class="{% if url_name == 'two_factor_manage' %}active{% endif %}"><i class="bi bi-phone-fill"></i> Two-factor security</a>
     <form method="post" action="{% url 'logout' %}" class="m-0">
       {% csrf_token %}
       <button type="submit" class="logout-btn"><i class="bi bi-box-arrow-right"></i> Logout</button>

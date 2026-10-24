@@ -9,7 +9,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from attendance.models import FREE_LEAVES_PER_MONTH
-from core import analytics
+from core import analytics, audit
 from core.middleware import is_admin_user
 from .forms import CreateLoginForm
 from .models import Employee
@@ -78,6 +78,7 @@ def employee_create_login(request, pk):
             )
             # update() avoids re-running full model validation on older employee records
             Employee.objects.filter(pk=employee.pk).update(user=user, must_change_password=True)
+            audit.record(employee, 'update', {'user': [None, user.get_username()]}, note='Login created')
         messages.success(request, f"Login created for {employee.name}. They must set a new password at first sign-in.")
         return redirect('employee_detail', pk=employee.pk)
     return render(request, 'employees/employee_create_login.html', {'form': form, 'employee': employee})
@@ -99,5 +100,6 @@ def employee_reset_password(request, pk):
     Employee.objects.filter(pk=employee.pk).update(must_change_password=True)
     from axes.utils import reset
     reset(username=user.username)
+    audit.record(employee, 'security', note=f'Temporary password issued for login {user.username}')
     # Rendered directly (not stored in a cookie/session) so it is shown exactly once.
     return render(request, 'employees/employee_temp_password.html', {'employee': employee, 'username': user.username, 'temp': temp})

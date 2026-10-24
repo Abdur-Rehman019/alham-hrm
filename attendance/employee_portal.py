@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import IntegrityError, transaction
@@ -54,7 +55,11 @@ def _check_in(request, employee, today):
         messages.info(request, 'Your attendance for today is already recorded.')
         return
     now = timezone.localtime()
-    _, created = DailyAttendance.objects.get_or_create(
+    if now.time() >= settings.OFFICE_END:
+        messages.error(request, f"Office hours are over ({settings.OFFICE_END.strftime('%I:%M %p').lstrip('0')}). "
+                                "Ask HR to record today's attendance if you were at work.")
+        return
+    record, created = DailyAttendance.objects.get_or_create(
         employee=employee,
         date=today,
         defaults={'status': 'present', 'check_in_time': now.time().replace(tzinfo=None)},
@@ -68,7 +73,13 @@ def _check_in(request, employee, today):
             decided_by=request.user.username,
             decision_note='Employee checked in',
         )
-        messages.success(request, f"Checked in at {now.strftime('%I:%M %p').lstrip('0')}.")
+        checked_in = now.strftime('%I:%M %p').lstrip('0')
+        if record.is_late:
+            messages.warning(request, f"Checked in at {checked_in}. This is recorded as late; "
+                                      f"office starts at {settings.OFFICE_START.strftime('%I:%M %p').lstrip('0')} "
+                                      f"and check-in is on time up to {settings.LATE_GRACE_MINUTES} minutes after.")
+        else:
+            messages.success(request, f"Checked in at {checked_in}.")
 
 
 @login_required

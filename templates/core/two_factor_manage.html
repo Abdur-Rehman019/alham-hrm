@@ -1,0 +1,19 @@
+{% extends 'core/base.html' %}
+{% block page_title %}Two-factor security{% endblock %}
+{% block content %}
+<div class="card p-4" style="max-width:560px;">
+  <div class="d-flex align-items-center gap-2 mb-3">
+    <span class="badge bg-success"><i class="bi bi-shield-check"></i> On</span>
+    <span class="small text-muted">Authenticator app linked {% if app_device.created_at %}on {{ app_device.created_at|date:"d M Y" }}{% endif %}</span>
+  </div>
+  <p class="small mb-1"><strong>Backup codes left:</strong> {{ backup_left }} of 10</p>
+  <p class="small text-muted">Use a backup code if you don't have your phone. Make new ones when you are running low or think someone has seen them.</p>
+  <form method="post" class="mb-4">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="backup_codes">
+    <button type="submit" class="btn btn-outline-primary"><i class="bi bi-arrow-repeat"></i> Make new backup codes</button>
+  </form>
+  <h6 class="fw-semibold">New phone, or a colleague lost theirs?</h6>
+  <p class="small text-muted mb-0">A superuser opens <strong>Django Admin → TOTP devices</strong> and deletes that person's device. At their next sign-in they scan a new QR code. If the only superuser is locked out, run <code>python manage.py reset_two_factor &lt;username&gt;</code> on the server.</p>
+</div>
+{% endblock %}

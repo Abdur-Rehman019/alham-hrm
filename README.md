@@ -99,8 +99,14 @@ Until email is configured, the deploy log shows warning `core.W001`, the reset p
 
 Keep secrets in Railway Variables, not in source control. An administrator must approve each generated payroll row; approval immediately attempts to send that employee's payslip, with a text breakdown and PDF attachment. An approved payroll can be resent by an administrator if delivery fails or a resend is needed. Changing payroll amounts during regeneration clears approval and requires a fresh approval. Payslips go to `Employee.email` (the HR record); the login's own email is only the fallback. Changing an employee's email also updates their login's email. Placeholder addresses such as the demo data's `@example.invalid` are refused with a clear message instead of being "sent" to an inbox that does not exist. Every attempt, including skipped or failed sends, is retained in the payroll email audit table.
 
+## Security features
+
+- **Two-factor sign-in for admins.** Every staff/superuser sign-in also needs a 6-digit code from an authenticator app (Google or Microsoft Authenticator). The first sign-in shows a QR code to set it up and 10 one-time backup codes. Employees are not affected. Settings: **Two-factor security** in the sidebar (new backup codes). Lost phone: sign in with a backup code; or a superuser deletes the person's device under **Django Admin → TOTP devices**; or, if the only superuser is locked out, run `python manage.py reset_two_factor <username>` on the server (`railway ssh --service web` after adding an SSH key with `ssh-keygen`). `ADMIN_2FA_REQUIRED=False` switches it off (not recommended).
+- **Audit log.** Sidebar → **Audit Log** lists every create/change/delete of employees (including salary), payroll (including approvals and payslip emails), incentive rules, enrollments and login accounts, with who, when, IP address, and old → new values. Passwords are logged only as "changed". Entries cannot be edited or deleted in the app or Django Admin.
+
 ## Business rules
 
+- Office hours are 10:00–18:00 (`OFFICE_START`, `OFFICE_END`). A check-in up to 10:15 is on time, from 10:16 it is marked late (`LATE_GRACE_MINUTES`, default 15). Employees cannot check themselves in after 18:00.
 - Sunday is the weekly holiday; attendance expects Monday through Saturday.
 - Approved leave beyond the monthly allowance is deducted using monthly salary divided by the calendar days in that month.
 - Unexplained absent working days are also deducted at the same calendar-day rate. Today is not counted as absent until the day ends.

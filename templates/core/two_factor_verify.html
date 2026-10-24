@@ -1,0 +1,26 @@
+{% extends 'core/base.html' %}
+{% block title %}Enter your code · ALHAM HRM{% endblock %}
+{% block body %}
+<div class="auth-page">
+  <div class="card auth-card">
+    <div class="text-center mb-3">
+      <div class="auth-icon mx-auto"><i class="bi bi-phone-fill"></i></div>
+      <h5 class="fw-bold mb-1">Enter your code</h5>
+      <p class="text-muted small mb-0">Open your authenticator app and type the 6-digit code for <strong>ALHAM HRM ({{ user.get_username }})</strong>.</p>
+    </div>
+    {% if error %}<div class="alert alert-danger py-2 small"><i class="bi bi-x-circle-fill"></i> {{ error }}</div>{% endif %}
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ next }}">
+      <label class="form-label small fw-semibold" for="id_code">Code</label>
+      <input type="text" name="code" id="id_code" class="form-control form-control-lg text-center mb-3" autocomplete="one-time-code" autocapitalize="none" spellcheck="false" maxlength="20" required autofocus style="letter-spacing:.3em;">
+      <button type="submit" class="btn btn-primary w-100">Verify</button>
+    </form>
+    <p class="text-muted small text-center mt-3 mb-0">Lost your phone? Type one of your backup codes instead.<br>No backup codes left? Ask another administrator to reset your two-factor sign-in.</p>
+    <form method="post" action="{% url 'logout' %}" class="text-center mt-2">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-link btn-sm text-muted">Sign out</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

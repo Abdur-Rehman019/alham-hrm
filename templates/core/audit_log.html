@@ -1,0 +1,52 @@
+{% extends 'core/base.html' %}
+{% block page_title %}Audit Log{% endblock %}
+{% block content %}
+<p class="text-muted small">Every change to employees, salaries, payroll, incentives and login accounts: who made it, when, from which IP, and the old and new values. Entries cannot be edited or deleted.</p>
+
+<form method="get" class="d-flex flex-wrap gap-2 mb-3">
+  <select name="category" class="form-select form-select-sm" style="max-width:200px;" onchange="this.form.submit()">
+    <option value="">All areas</option>
+    {% for value, label in categories %}<option value="{{ value }}" {% if value == category %}selected{% endif %}>{{ label }}</option>{% endfor %}
+  </select>
+  <input type="search" name="q" value="{{ query }}" class="form-control form-control-sm" style="max-width:260px;" placeholder="Search name, user or note">
+  <button class="btn btn-sm btn-outline-primary">Search</button>
+  {% if category or query %}<a href="{% url 'audit_log' %}" class="btn btn-sm btn-link">Clear</a>{% endif %}
+</form>
+
+<div class="card">
+  <div class="table-responsive"><table class="table table-sm mb-0 align-top">
+    <thead><tr><th class="ps-3">When</th><th>Who</th><th>What</th><th class="pe-3">Details</th></tr></thead>
+    <tbody>
+    {% for entry in page %}
+      <tr>
+        <td class="ps-3 text-nowrap small">{{ entry.created_at|date:"d M Y" }}<br><span class="text-muted">{{ entry.created_at|time:"g:i A" }}</span></td>
+        <td class="small text-nowrap">{{ entry.actor_name }}{% if entry.ip_address %}<br><span class="text-muted">{{ entry.ip_address }}</span>{% endif %}</td>
+        <td class="small">
+          <span class="badge {% if entry.action == 'delete' %}bg-danger{% elif entry.action == 'create' %}bg-success{% elif entry.action == 'approve' %}bg-primary{% elif entry.action == 'security' %}bg-dark{% else %}bg-secondary{% endif %}">{{ entry.get_action_display }}</span>
+          <span class="text-muted">{{ entry.object_type }}</span><br>{{ entry.object_repr }}
+        </td>
+        <td class="pe-3 small">
+          {% if entry.note %}<div>{{ entry.note }}</div>{% endif %}
+          {% for field, values in entry.changes.items %}
+            <div><span class="text-muted">{{ field }}:</span>
+              {% if values.0 is not None %}<del class="text-danger">{{ values.0 }}</del> → {% endif %}<span class="text-success">{{ values.1|default_if_none:"(removed)" }}</span></div>
+          {% endfor %}
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="4"><div class="empty-state"><i class="bi bi-journal"></i>No changes recorded yet.</div></td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+
+{% if page.has_other_pages %}
+<nav class="d-flex justify-content-between align-items-center mt-3 small">
+  <span class="text-muted">Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+  <div class="btn-group">
+    {% if page.has_previous %}<a class="btn btn-sm btn-outline-primary" href="?category={{ category }}&q={{ query|urlencode }}&page={{ page.previous_page_number }}">Newer</a>{% endif %}
+    {% if page.has_next %}<a class="btn btn-sm btn-outline-primary" href="?category={{ category }}&q={{ query|urlencode }}&page={{ page.next_page_number }}">Older</a>{% endif %}
+  </div>
+</nav>
+{% endif %}
+{% endblock %}
