@@ -28,10 +28,10 @@
         <thead><tr><th>Student</th><th>Country</th><th>Confirmed On</th></tr></thead>
         <tbody>
           {% for row in sheet.rows %}
-          <tr class="{% if row.date_error %}table-danger{% endif %}">
+          <tr class="{% if row.problem %}table-danger{% endif %}">
             <td>{{ row.student_name }}</td>
-            <td>{{ row.country }}</td>
-            <td>{% if row.date_error %}Could not parse date{% else %}{{ row.confirmed_on }}{% endif %}</td>
+            <td>{{ row.country|default:"—" }}</td>
+            <td>{% if row.confirmed_on %}{{ row.confirmed_on|date:"d M Y" }}{% else %}—{% endif %}{% if row.problem %} <span class="text-danger small">({{ row.problem }}, will be skipped)</span>{% endif %}</td>
           </tr>
           {% endfor %}
         </tbody>
