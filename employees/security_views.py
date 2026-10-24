@@ -68,7 +68,16 @@ def employee_create_login(request, pk):
         messages.error(request, "Cannot create a login for an inactive employee.")
         return redirect('employee_detail', pk=employee.pk)
 
-    form = CreateLoginForm(request.POST or None, initial={'email': employee.email or ''})
+    suggested = (employee.email or '').split('@')[0].lower() if employee.email else ''
+    if suggested and User.objects.filter(username__iexact=suggested).exists():
+        suggested = ''
+    form = CreateLoginForm(request.POST or None, initial={'email': employee.email or '', 'username': suggested})
+    if request.method == 'POST' and form.is_valid():
+        login_email = form.cleaned_data.get('email') or employee.email or ''
+        # Signing in by email needs each email to belong to one login only.
+        if login_email and (User.objects.filter(email__iexact=login_email).exists() or
+                            Employee.objects.filter(email__iexact=login_email).exclude(pk=employee.pk).exists()):
+            form.add_error('email', 'Another account already uses this email.')
     if request.method == 'POST' and form.is_valid():
         with transaction.atomic():
             user = User.objects.create_user(

@@ -40,7 +40,7 @@ INSTALLED_APPS = [
 
 AUTHENTICATION_BACKENDS = [
     'axes.backends.AxesStandaloneBackend',
-    'django.contrib.auth.backends.ModelBackend',
+    'core.backends.EmailOrUsernameBackend',  # username or company email
 ]
 
 # Admin and staff accounts must confirm each sign-in with an authenticator app code (or a backup code).

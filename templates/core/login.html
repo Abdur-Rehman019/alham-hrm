@@ -13,13 +13,13 @@
     </div>
     {% include 'core/_messages.html' %}
     {% if form.errors %}
-      <div class="alert alert-danger py-2 small"><i class="bi bi-x-circle-fill"></i> Invalid username or password. Usernames and passwords are case-sensitive.</div>
+      <div class="alert alert-danger py-2 small"><i class="bi bi-x-circle-fill"></i> Wrong email/username or password. Passwords are case-sensitive.</div>
     {% endif %}
     <form method="post" novalidate>
       {% csrf_token %}
       <input type="hidden" name="next" value="{{ next }}">
       <div class="mb-3">
-        <label class="form-label small fw-semibold" for="id_username">Username</label>
+        <label class="form-label small fw-semibold" for="id_username">Company email or username</label>
         <input type="text" name="username" id="id_username" class="form-control" value="{% firstof form.username.value request.GET.username '' %}" autocomplete="username" autocapitalize="none" spellcheck="false" required autofocus>
       </div>
       <div class="mb-3">
