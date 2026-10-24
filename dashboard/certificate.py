@@ -190,7 +190,7 @@ def draw_counselor_certificate(response, name, period_label, enrollment_count):
     _spaced(c, 'This certificate is proudly presented to', cx, top - 138, 'Helvetica', 11.5, 0.3, INK)
 
     script, scale = _script_font()
-    size = 54 * scale
+    size = 62 * scale
     while pdfmetrics.stringWidth(name, script, size) > inner_w * 0.62 and size > 26:
         size -= 2
     c.setFont(script, size)
