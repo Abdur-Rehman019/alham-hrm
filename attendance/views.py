@@ -4,14 +4,17 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from core import analytics
+from core import analytics, audit
 from core.middleware import client_ip, is_admin_user
 from employees.models import Employee
-from .forms import LeaveForm, OfficeLocationForm
+from payroll.models import Payroll
+from .forms import AttendanceEditForm, LeaveForm, OfficeLocationForm
 from .models import FREE_LEAVES_PER_MONTH, DailyAttendance, Leave, LeaveRequest, OfficeLocation
 
 admin_required = user_passes_test(is_admin_user, login_url='login')
@@ -165,6 +168,55 @@ def leave_request_reject(request, pk):
     else:
         messages.info(request, 'That request was already handled.')
     return redirect('leave_requests_list')
+
+
+@login_required
+@admin_required
+def attendance_edit(request, employee_pk, day):
+    """Correct one day for one employee: wrong check-in time, wrong status, or a day with no record."""
+    employee = get_object_or_404(Employee, pk=employee_pk)
+    try:
+        date = datetime.date.fromisoformat(day)
+    except ValueError:
+        raise Http404
+    back = f"{reverse('employee_detail', args=[employee.pk])}?month={date.month}&year={date.year}"
+    if date > timezone.localdate() or date < employee.joined_on or (employee.leaving_date and date > employee.leaving_date):
+        messages.error(request, f"{date:%d %b %Y} is outside {employee.name}'s employment, or in the future.")
+        return redirect(back)
+
+    record = DailyAttendance.objects.filter(employee=employee, date=date).first()
+    initial = {'status': record.status if record and record.status != 'needs_review' else 'present',
+               'check_in_time': record.check_in_time if record else None}
+    form = AttendanceEditForm(request.POST or None, initial=initial)
+    if request.method == 'POST' and form.is_valid():
+        status, check_in, reason = (form.cleaned_data[k] for k in ('status', 'check_in_time', 'reason'))
+        before = {'status': record.status, 'check_in_time': _plain_time(record.check_in_time)} if record else None
+        with transaction.atomic():
+            record, _ = DailyAttendance.objects.update_or_create(
+                employee=employee, date=date,
+                defaults={'status': status, 'check_in_time': check_in, 'note': f'Corrected by HR: {reason}'[:100]})
+            had_leave = Leave.objects.filter(employee=employee, date=date).exists()
+            if status == 'leave' and not had_leave:
+                Leave.objects.create(employee=employee, date=date, leave_type='casual', reason=f'Set by HR: {reason}'[:255])
+            elif status != 'leave' and had_leave:
+                Leave.objects.filter(employee=employee, date=date).delete()
+            _recompute_leave_flags(employee, date.year, date.month)
+        after = {'status': status, 'check_in_time': _plain_time(check_in)}
+        changes = {k: [before[k] if before else None, after[k]] for k in after if not before or before[k] != after[k]}
+        audit.record(record, 'update' if before else 'create', changes,
+                     note=f'{employee.name}, {date:%d %b %Y}: {reason}', category='attendance')
+        messages.success(request, f"{employee.name}'s attendance for {date:%d %b %Y} updated.")
+        if Payroll.objects.filter(employee=employee, year=date.year, month=date.month).exists():
+            messages.warning(request, f"Payroll for {date:%B %Y} already exists for {employee.name}. "
+                                      "Regenerate it on the Payroll page so the change is reflected.")
+        return redirect(back)
+    return render(request, 'attendance/attendance_edit.html', {
+        'form': form, 'employee': employee, 'date': date, 'record': record, 'back': back,
+    })
+
+
+def _plain_time(value):
+    return value.strftime('%H:%M') if value else None
 
 
 @login_required

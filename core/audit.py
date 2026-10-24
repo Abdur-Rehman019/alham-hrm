@@ -80,11 +80,11 @@ def _describe(instance):
     return str(instance)[:200]
 
 
-def record(instance, action, changes=None, note=''):
+def record(instance, action, changes=None, note='', category=None):
     """Write one audit entry; also used directly by views for things signals cannot see."""
     from .models import AuditLog
     label = instance._meta.label
-    category = TRACKED.get(label, ('employee', []))[0]
+    category = category or TRACKED.get(label, ('employee', []))[0]
     actor, actor_name, ip = _actor()
     AuditLog.objects.create(
         actor=actor, actor_name=actor_name, ip_address=ip or '',

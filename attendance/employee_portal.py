@@ -69,6 +69,10 @@ def _check_in(request, employee, today):
         messages.info(request, 'Your attendance for today is already recorded.')
         return
     now = timezone.localtime()
+    if now.time() < settings.CHECK_IN_OPENS:
+        messages.error(request, f"Check-in opens at {settings.CHECK_IN_OPENS.strftime('%I:%M %p').lstrip('0')}. "
+                                "Please check in when you reach the office.")
+        return
     if now.time() >= settings.OFFICE_END:
         messages.error(request, f"Office hours are over ({settings.OFFICE_END.strftime('%I:%M %p').lstrip('0')}). "
                                 "Ask HR to record today's attendance if you were at work.")

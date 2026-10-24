@@ -110,6 +110,8 @@ AUTH_PASSWORD_VALIDATORS = [
 # No self check-ins are accepted after OFFICE_END.
 OFFICE_START = datetime.time.fromisoformat(config('OFFICE_START', default='10:00'))
 OFFICE_END = datetime.time.fromisoformat(config('OFFICE_END', default='18:00'))
+# Self check-in opens here (stops a "check-in" at midnight counting as an early arrival).
+CHECK_IN_OPENS = datetime.time.fromisoformat(config('CHECK_IN_OPENS', default='08:00'))
 LATE_GRACE_MINUTES = config('LATE_GRACE_MINUTES', default=15, cast=int)
 
 LANGUAGE_CODE = 'en-us'

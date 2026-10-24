@@ -68,9 +68,9 @@
 <div class="row g-3">
   <div class="col-lg-6"><div class="card p-3"><h6 class="fw-semibold mb-3">Attendance log, {{ period_label }}</h6>
     <div class="table-responsive" style="max-height:340px;overflow-y:auto;"><table class="table table-sm mb-0">
-      <thead><tr><th>Date</th><th>Status</th><th>Check-in</th><th>Note</th></tr></thead><tbody>
-      {% for r in attendance_log %}<tr><td>{{ r.date|date:"D, d M" }}</td><td>{% include 'core/_status_badge.html' with status=r.status %}{% if r.late %} <span class="badge bg-danger">Late</span>{% endif %}</td><td>{% if r.check_in %}{{ r.check_in|time:"g:i A" }}{% else %}-{% endif %}</td><td class="small text-muted">{{ r.note|default:"" }}</td></tr>
-      {% empty %}<tr><td colspan="4" class="text-center text-muted py-3">No attendance for this month.</td></tr>{% endfor %}</tbody></table></div></div></div>
+      <thead><tr><th>Date</th><th>Status</th><th>Check-in</th><th>Note</th><th></th></tr></thead><tbody>
+      {% for r in attendance_log %}<tr><td>{{ r.date|date:"D, d M" }}</td><td>{% include 'core/_status_badge.html' with status=r.status %}{% if r.late %} <span class="badge bg-danger">Late</span>{% endif %}</td><td>{% if r.check_in %}{{ r.check_in|time:"g:i A" }}{% else %}-{% endif %}</td><td class="small text-muted">{{ r.note|default:"" }}</td><td class="text-end"><a href="{% url 'attendance_edit' employee.pk r.date|date:'Y-m-d' %}" class="btn btn-sm btn-link py-0" title="Correct this day"><i class="bi bi-pencil-square"></i> Edit</a></td></tr>
+      {% empty %}<tr><td colspan="5" class="text-center text-muted py-3">No attendance for this month.</td></tr>{% endfor %}</tbody></table></div></div></div>
   <div class="col-lg-6"><div class="card p-3"><h6 class="fw-semibold mb-3">Students enrolled, {{ period_label }}</h6>
     <div class="table-responsive"><table class="table table-sm mb-0">
       <thead><tr><th>Student</th><th>Country</th><th>Date</th><th>Incentive</th></tr></thead><tbody>

@@ -33,7 +33,7 @@ class AuditLog(models.Model):
         ('payroll', 'Payroll'),
         ('incentive', 'Incentives'),
         ('account', 'Login account'),
-        ('attendance', 'Attendance rules'),
+        ('attendance', 'Attendance'),
     ]
     ACTION_CHOICES = [
         ('create', 'Created'),

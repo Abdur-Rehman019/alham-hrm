@@ -6,6 +6,32 @@ from django.utils import timezone
 from .models import DailyAttendance, Leave, LeaveRequest, OfficeLocation
 
 
+class AttendanceEditForm(forms.Form):
+    """HR correction of one employee's day, e.g. a check-in recorded at the wrong time."""
+    STATUS_CHOICES = [('present', 'Present'), ('absent', 'Absent'), ('leave', 'Leave'), ('holiday', 'Holiday')]
+    status = forms.ChoiceField(choices=STATUS_CHOICES, widget=forms.Select(attrs={'class': 'form-select'}))
+    check_in_time = forms.TimeField(
+        required=False, widget=forms.TimeInput(attrs={'type': 'time', 'class': 'form-control'}, format='%H:%M'),
+        help_text='Needed when the status is Present.')
+    reason = forms.CharField(
+        max_length=80, widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. Checked in late at night by mistake; arrived 10:05'}),
+        help_text='Why this is being changed. Saved on the record and in the audit log.')
+
+    def clean_reason(self):
+        reason = self.cleaned_data['reason'].strip()
+        if len(reason) < 5:
+            raise forms.ValidationError('Please give a short reason for the change.')
+        return reason
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get('status') == 'present' and not cleaned.get('check_in_time'):
+            self.add_error('check_in_time', 'Enter the time the employee actually arrived.')
+        if cleaned.get('status') != 'present':
+            cleaned['check_in_time'] = None
+        return cleaned
+
+
 class OfficeLocationForm(forms.ModelForm):
     class Meta:
         model = OfficeLocation

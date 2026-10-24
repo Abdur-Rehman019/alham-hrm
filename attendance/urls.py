@@ -7,6 +7,7 @@ urlpatterns = [
     path('<int:pk>/delete/', views.leave_delete, name='leave_delete'),
     path('holiday/', views.holiday_add, name='holiday_add'),
     path('check-in-location/', views.office_location, name='office_location'),
+    path('record/<int:employee_pk>/<str:day>/edit/', views.attendance_edit, name='attendance_edit'),
     path('portal/', employee_portal.portal_dashboard, name='portal_dashboard'),
     path('portal/attendance/', employee_portal.portal_attendance, name='portal_attendance'),
     path('portal/leaves/', employee_portal.portal_leaves, name='portal_leaves'),

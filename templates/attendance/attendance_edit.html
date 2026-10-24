@@ -1,0 +1,50 @@
+{% extends 'core/base.html' %}
+{% block page_title %}Edit Attendance{% endblock %}
+{% block content %}
+<div class="card p-4" style="max-width:560px;">
+  <h6 class="fw-bold mb-1">{{ employee.name }}</h6>
+  <p class="text-muted small mb-3">{{ date|date:"l, d F Y" }}</p>
+
+  <div class="small mb-3 p-2 rounded" style="background:#f4f6f9;">
+    <strong>Currently:</strong>
+    {% if record %}
+      {% include 'core/_status_badge.html' with status=record.status %}
+      {% if record.check_in_time %} checked in {{ record.check_in_time|time:"g:i A" }}{% if record.is_late %} <span class="badge bg-danger">Late</span>{% endif %}{% endif %}
+      {% if record.note %}<br><span class="text-muted">{{ record.note }}</span>{% endif %}
+      {% if record.check_in_ip %}<br><span class="text-muted">Self check-in from IP {{ record.check_in_ip }}{% if record.check_in_distance_m is not None %}, {{ record.check_in_distance_m }} m from the office{% endif %}</span>{% endif %}
+    {% else %}
+      no record (counts as <strong>absent</strong> on a working day)
+    {% endif %}
+  </div>
+
+  <form method="post">
+    {% csrf_token %}
+    <div class="row g-3">
+      <div class="col-sm-6">
+        <label class="form-label small fw-semibold" for="id_status">Status</label>{{ form.status }}
+      </div>
+      <div class="col-sm-6" id="time-field">
+        <label class="form-label small fw-semibold" for="id_check_in_time">Arrival time</label>{{ form.check_in_time }}
+        {% if form.check_in_time.errors %}<div class="text-danger small mt-1">{{ form.check_in_time.errors|striptags }}</div>{% endif %}
+        <div class="form-text">After 10:15 AM counts as late.</div>
+      </div>
+      <div class="col-12">
+        <label class="form-label small fw-semibold" for="id_reason">Reason for change</label>{{ form.reason }}
+        {% if form.reason.errors %}<div class="text-danger small mt-1">{{ form.reason.errors|striptags }}</div>{% else %}<div class="form-text">{{ form.reason.help_text }}</div>{% endif %}
+      </div>
+    </div>
+    <div class="d-flex flex-wrap gap-2 mt-3">
+      <button type="submit" class="btn btn-primary">Save change</button>
+      <a href="{{ back }}" class="btn btn-outline-secondary">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
+{% block extra_scripts %}
+<script>
+  const statusSelect = document.getElementById('id_status');
+  const timeField = document.getElementById('time-field');
+  const sync = () => { timeField.style.display = statusSelect.value === 'present' ? '' : 'none'; };
+  statusSelect.addEventListener('change', sync); sync();
+</script>
+{% endblock %}
