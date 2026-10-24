@@ -106,6 +106,7 @@ Keep secrets in Railway Variables, not in source control. An administrator must 
 
 ## Business rules
 
+- Self check-in must come from the office. HR sets this up under **Check-in Location** (while at the office): the office internet IP ("add it" button) and/or the office GPS point and radius (default 150 m). A check-in from office Wi-Fi **or** inside the radius counts as present; anything else, including refused location access, is still recorded but goes to **Attendance Review** with the distance, IP and a map link. "Require both" makes it stricter (needs a static IP). Until the page is set up, check-ins are accepted from anywhere. GPS can be faked with special apps; for stronger proof use the office IP, a biometric device (import), or review repeated off-site check-ins.
 - Office hours are 10:00–18:00 (`OFFICE_START`, `OFFICE_END`). A check-in up to 10:15 is on time, from 10:16 it is marked late (`LATE_GRACE_MINUTES`, default 15). Employees cannot check themselves in after 18:00.
 - Sunday is the weekly holiday; attendance expects Monday through Saturday.
 - Approved leave beyond the monthly allowance is deducted using monthly salary divided by the calendar days in that month.

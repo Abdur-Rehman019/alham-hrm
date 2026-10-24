@@ -168,6 +168,7 @@
   <a href="{% url 'employee_list' %}" class="{% if 'employee' in url_name %}active{% endif %}"><i class="bi bi-people-fill"></i> Employees</a>
   <a href="{% url 'leave_list' %}" class="{% if url_name == 'leave_list' or url_name == 'leave_add' %}active{% endif %}"><i class="bi bi-calendar-check-fill"></i> Attendance</a>
   <a href="{% url 'attendance_review' %}" class="{% if url_name == 'attendance_review' %}active{% endif %}"><i class="bi bi-flag-fill"></i> Attendance Review</a>
+  <a href="{% url 'office_location' %}" class="{% if url_name == 'office_location' %}active{% endif %}"><i class="bi bi-geo-alt-fill"></i> Check-in Location</a>
   <a href="{% url 'leave_requests_list' %}" class="{% if 'leave_request' in url_name %}active{% endif %}"><i class="bi bi-envelope-paper-fill"></i> Leave Requests{% if pending_leave_count %} <span class="badge ms-auto" style="background:#dbe803;color:#0a1e4d;">{{ pending_leave_count }}</span>{% endif %}</a>
 
   <div class="nav-section-label">Admissions</div>

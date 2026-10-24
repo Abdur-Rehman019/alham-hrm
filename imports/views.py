@@ -4,7 +4,7 @@ import uuid
 from django.conf import settings
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
-from django.shortcuts import render, redirect
+from django.shortcuts import get_object_or_404, render, redirect
 from django.core.exceptions import ValidationError
 from django.views.decorators.http import require_POST
 
@@ -191,9 +191,12 @@ def attendance_review(request):
 @admin_required
 @require_POST
 def attendance_resolve(request, pk):
-    record = DailyAttendance.objects.get(pk=pk)
+    record = get_object_or_404(DailyAttendance, pk=pk)
     if request.method == 'POST':
         new_status = request.POST.get('status')
+        if new_status not in ('present', 'leave', 'absent', 'holiday'):
+            messages.error(request, 'Choose Present, Leave, Absent or Holiday.')
+            return redirect('attendance_review')
         if new_status == 'leave':
             record.status = 'leave'
             Leave.objects.get_or_create(
@@ -204,6 +207,8 @@ def attendance_resolve(request, pk):
             record.status = 'present'
         elif new_status == 'absent':
             record.status = 'absent'
+        elif new_status == 'holiday':
+            record.status = 'holiday'
         record.save()
         messages.success(request, 'Attendance record resolved.')
     return redirect('attendance_review')

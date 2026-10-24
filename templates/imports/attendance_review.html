@@ -1,16 +1,20 @@
 {% extends 'core/base.html' %}
 {% block page_title %}Attendance Needing Review{% endblock %}
 {% block content %}
-<p class="text-muted small">These cells couldn't be confidently read from the imported sheet (blank, unclear text, or marked "not mention"). Resolve each one below.</p>
+<p class="text-muted small">Records that need a decision: cells that couldn't be read from an imported sheet, and self check-ins made away from the office (see <a href="{% url 'office_location' %}">Check-in Location</a>). Choosing <strong>Present</strong> keeps the original check-in time, so lateness is still counted.</p>
 <div class="card">
 <div class="table-responsive"><table class="table table-hover mb-0">
-  <thead><tr><th class="ps-3">Employee</th><th>Date</th><th>Original Text</th><th class="pe-3">Resolve As</th></tr></thead>
+  <thead><tr><th class="ps-3">Employee</th><th>Date</th><th>Details</th><th class="pe-3">Resolve As</th></tr></thead>
   <tbody>
     {% for r in records %}
     <tr>
       <td class="ps-3">{{ r.employee.name }}</td>
       <td>{{ r.date }}</td>
-      <td>{{ r.note|default:"(blank)" }}</td>
+      <td class="small">
+        {{ r.note|default:"(blank)" }}
+        {% if r.check_in_time %}<br><span class="text-muted">Checked in {{ r.check_in_time|time:"g:i A" }}{% if r.check_in_ip %} · IP {{ r.check_in_ip }}{% endif %}{% if r.check_in_accuracy_m %} · GPS ±{{ r.check_in_accuracy_m }} m{% endif %}</span>{% endif %}
+        {% if r.check_in_latitude is not None %}<br><a target="_blank" rel="noopener" href="https://www.google.com/maps?q={{ r.check_in_latitude }},{{ r.check_in_longitude }}"><i class="bi bi-map"></i> Where they checked in</a>{% endif %}
+      </td>
       <td class="pe-3">
         <form method="post" action="{% url 'attendance_resolve' r.pk %}" class="d-flex gap-2">
           {% csrf_token %}

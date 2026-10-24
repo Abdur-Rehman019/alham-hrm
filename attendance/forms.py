@@ -3,7 +3,56 @@ import datetime
 from django import forms
 from django.utils import timezone
 
-from .models import DailyAttendance, Leave, LeaveRequest
+from .models import DailyAttendance, Leave, LeaveRequest, OfficeLocation
+
+
+class OfficeLocationForm(forms.ModelForm):
+    class Meta:
+        model = OfficeLocation
+        fields = ['latitude', 'longitude', 'radius_m', 'allowed_ips', 'require_both']
+        labels = {'radius_m': 'Allowed distance (metres)', 'allowed_ips': 'Office internet IP addresses',
+                  'require_both': 'Require office Wi-Fi and location together'}
+        widgets = {
+            'latitude': forms.NumberInput(attrs={'class': 'form-control', 'step': 'any', 'placeholder': 'e.g. 31.520370'}),
+            'longitude': forms.NumberInput(attrs={'class': 'form-control', 'step': 'any', 'placeholder': 'e.g. 74.358749'}),
+            'radius_m': forms.NumberInput(attrs={'class': 'form-control', 'min': 30, 'max': 2000}),
+            'allowed_ips': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'One per line'}),
+            'require_both': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+    def clean_latitude(self):
+        value = self.cleaned_data.get('latitude')
+        if value is not None and not -90 <= value <= 90:
+            raise forms.ValidationError('Latitude must be between -90 and 90.')
+        return value
+
+    def clean_longitude(self):
+        value = self.cleaned_data.get('longitude')
+        if value is not None and not -180 <= value <= 180:
+            raise forms.ValidationError('Longitude must be between -180 and 180.')
+        return value
+
+    def clean_radius_m(self):
+        value = self.cleaned_data['radius_m']
+        if not 30 <= value <= 2000:
+            raise forms.ValidationError('Use a distance between 30 and 2000 metres.')
+        return value
+
+    def clean_allowed_ips(self):
+        import ipaddress
+        lines = [line.strip() for line in self.cleaned_data['allowed_ips'].replace(',', '\n').splitlines() if line.strip()]
+        for line in lines:
+            try:
+                ipaddress.ip_address(line)
+            except ValueError:
+                raise forms.ValidationError(f'"{line}" is not a valid IP address.')
+        return '\n'.join(dict.fromkeys(lines))
+
+    def clean(self):
+        cleaned = super().clean()
+        if (cleaned.get('latitude') is None) != (cleaned.get('longitude') is None):
+            raise forms.ValidationError('Enter both latitude and longitude, or leave both empty.')
+        return cleaned
 
 
 class LeaveForm(forms.ModelForm):

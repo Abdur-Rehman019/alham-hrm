@@ -24,6 +24,7 @@ TRACKED = {
     'payroll.StudentEnrollment': ('incentive', [
         'student_name', 'destination_country', 'counselor', 'confirmed_on', 'incentive_amount', 'incentive_paid',
     ]),
+    'attendance.OfficeLocation': ('attendance', ['latitude', 'longitude', 'radius_m', 'allowed_ips', 'require_both']),
     'auth.User': ('account', ['username', 'email', 'is_active', 'is_staff', 'is_superuser', 'password']),
 }
 SECRET_FIELDS = {'password'}

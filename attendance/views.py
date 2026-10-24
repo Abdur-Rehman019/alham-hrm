@@ -9,10 +9,10 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from core import analytics
-from core.middleware import is_admin_user
+from core.middleware import client_ip, is_admin_user
 from employees.models import Employee
-from .forms import LeaveForm
-from .models import FREE_LEAVES_PER_MONTH, DailyAttendance, Leave, LeaveRequest
+from .forms import LeaveForm, OfficeLocationForm
+from .models import FREE_LEAVES_PER_MONTH, DailyAttendance, Leave, LeaveRequest, OfficeLocation
 
 admin_required = user_passes_test(is_admin_user, login_url='login')
 
@@ -165,3 +165,30 @@ def leave_request_reject(request, pk):
     else:
         messages.info(request, 'That request was already handled.')
     return redirect('leave_requests_list')
+
+
+@login_required
+@admin_required
+def office_location(request):
+    """Where employees may check in from: office internet IPs and/or a GPS point with a radius."""
+    location = OfficeLocation.current() or OfficeLocation()
+    current_ip = client_ip(request)
+    if request.method == 'POST' and request.POST.get('action') == 'add_my_ip':
+        ips = location.ip_list
+        if current_ip and current_ip not in ips:
+            location.allowed_ips = '\n'.join([*ips, current_ip])
+            location.save()
+            messages.success(request, f'Added {current_ip}. Check-ins from this internet connection now count as in the office.')
+        else:
+            messages.info(request, f'{current_ip} is already on the list.')
+        return redirect('office_location')
+
+    form = OfficeLocationForm(request.POST or None, instance=location)
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        messages.success(request, 'Check-in location saved.')
+        return redirect('office_location')
+    return render(request, 'attendance/office_location.html', {
+        'form': form, 'location': location, 'current_ip': current_ip,
+        'current_ip_listed': current_ip in location.ip_list,
+    })

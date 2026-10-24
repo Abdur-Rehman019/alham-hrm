@@ -6,10 +6,16 @@
 <div class="row g-3 mb-3">
   <div class="col-lg-4"><div class="card p-4 h-100 text-center"><h6 class="fw-semibold">Today</h6>
     {% if today_record.status == 'leave' or on_leave %}<div class="alert alert-warning mb-0">You are on approved leave today.</div>
-    {% elif today_record.check_in_time %}<div class="alert alert-success mb-0">Checked in at <strong>{{ today_record.check_in_time|time:"g:i A" }}</strong>.</div>
+    {% elif today_record.status == 'needs_review' and today_record.check_in_time %}<div class="alert alert-warning mb-0">Checked in at <strong>{{ today_record.check_in_time|time:"g:i A" }}</strong>, waiting for HR review because you didn't appear to be at the office.</div>
+    {% elif today_record.check_in_time %}<div class="alert {% if today_record.is_late %}alert-warning{% else %}alert-success{% endif %} mb-0">Checked in at <strong>{{ today_record.check_in_time|time:"g:i A" }}</strong>{% if today_record.is_late %} (late){% endif %}.</div>
     {% elif today_record %}<div class="alert alert-secondary mb-0">{{ today_record.get_status_display }}</div>
     {% elif is_sunday %}<div class="alert alert-secondary mb-0">Sunday is the weekly holiday.</div>
-    {% else %}<p class="text-muted small">Your check-in has not been recorded yet.</p><form method="post">{% csrf_token %}<button class="btn btn-primary">Check in now</button></form>{% endif %}
+    {% else %}<p class="text-muted small">Your check-in has not been recorded yet. Check in from the office; your location is used only to confirm that.</p>
+      <form method="post" id="check-in-form">{% csrf_token %}
+        <input type="hidden" name="latitude"><input type="hidden" name="longitude"><input type="hidden" name="accuracy">
+        <button class="btn btn-primary btn-lg w-100" id="check-in-btn"><i class="bi bi-geo-alt-fill"></i> Check in now</button>
+        <div class="small text-muted mt-2" id="check-in-status"></div>
+      </form>{% endif %}
   </div></div>
   <div class="col-lg-8"><div class="row g-3">
     <div class="col-sm-6 col-xl-4"><div class="card stat-card"><div class="label">This month attendance</div><div class="value">{% if summary.rate is None %}—{% else %}{{ summary.rate }}%{% endif %}</div></div></div>
@@ -38,4 +44,31 @@
 {% block extra_scripts %}{% if employee %}{% include 'core/_chart_helpers.html' %}<script>
 hrmChart('enrollChart',{type:'bar',data:{labels:DATA.months,datasets:[{label:'Enrollments',data:DATA.enrollments,backgroundColor:C.blue,borderRadius:5}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}});
 hrmChart('rateChart',{type:'line',data:{labels:DATA.months,datasets:[{label:'Attendance rate (%)',data:DATA.rate,borderColor:C.green,spanGaps:true,tension:.3}]},options:{scales:{y:{beginAtZero:true,max:100}}}});
+</script>
+<script>
+// Attach the phone's location to the check-in. If it can't be read, the check-in is still sent (HR reviews it).
+(function () {
+  const form = document.getElementById('check-in-form');
+  if (!form) return;
+  const status = document.getElementById('check-in-status');
+  const button = document.getElementById('check-in-btn');
+  let sent = false;
+  const send = () => { if (!sent) { sent = true; form.submit(); } };
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (sent) return;
+    button.disabled = true;
+    if (!navigator.geolocation) { send(); return; }
+    status.textContent = 'Confirming you are at the office…';
+    const fallback = setTimeout(send, 10000);
+    navigator.geolocation.getCurrentPosition(function (pos) {
+      clearTimeout(fallback);
+      form.latitude.value = pos.coords.latitude;
+      form.longitude.value = pos.coords.longitude;
+      form.accuracy.value = Math.round(pos.coords.accuracy);
+      send();
+    }, function () { clearTimeout(fallback); send(); },
+    {enableHighAccuracy: true, timeout: 9000, maximumAge: 60000});
+  });
+})();
 </script>{% endif %}{% endblock %}

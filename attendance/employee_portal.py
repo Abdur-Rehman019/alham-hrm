@@ -10,12 +10,13 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods, require_POST
 
 from core import analytics
+from core.middleware import client_ip
 from employees.models import Employee
 from payroll.calculations import compute_payroll
 from payroll.models import Payroll, StudentEnrollment
 
 from .forms import LeaveRequestForm
-from .models import DailyAttendance, Leave, LeaveRequest
+from .models import DailyAttendance, Leave, LeaveRequest, OfficeLocation
 
 
 def _employee(request):
@@ -44,6 +45,19 @@ def _attendance_charts(employee, year, month):
     }
 
 
+def _posted_location(request):
+    """Latitude, longitude and accuracy (metres) sent by the check-in button, or Nones if not shared/invalid."""
+    try:
+        latitude = float(request.POST['latitude'])
+        longitude = float(request.POST['longitude'])
+        accuracy = float(request.POST.get('accuracy') or 0)
+    except (KeyError, TypeError, ValueError):
+        return None, None, None
+    if not (-90 <= latitude <= 90 and -180 <= longitude <= 180 and 0 <= accuracy < 100000):
+        return None, None, None
+    return latitude, longitude, accuracy
+
+
 def _check_in(request, employee, today):
     if not employee.is_active:
         messages.error(request, 'Your employee record is inactive.')
@@ -59,11 +73,31 @@ def _check_in(request, employee, today):
         messages.error(request, f"Office hours are over ({settings.OFFICE_END.strftime('%I:%M %p').lstrip('0')}). "
                                 "Ask HR to record today's attendance if you were at work.")
         return
+    ip = client_ip(request)
+    latitude, longitude, accuracy = _posted_location(request)
+    location = OfficeLocation.current()
+    on_site, reason, distance = (location.evaluate(ip, latitude, longitude, accuracy)
+                                 if location and location.is_configured else (True, '', None))
     record, created = DailyAttendance.objects.get_or_create(
         employee=employee,
         date=today,
-        defaults={'status': 'present', 'check_in_time': now.time().replace(tzinfo=None)},
+        defaults={
+            # Off-site check-ins are kept, but HR decides whether they count.
+            'status': 'present' if on_site else 'needs_review',
+            'note': '' if on_site else f'Self check-in away from office: {reason}'[:100],
+            'check_in_time': now.time().replace(tzinfo=None),
+            'check_in_ip': ip or '',
+            'check_in_latitude': Decimal(f'{latitude:.6f}') if latitude is not None else None,
+            'check_in_longitude': Decimal(f'{longitude:.6f}') if longitude is not None else None,
+            'check_in_accuracy_m': round(accuracy) if accuracy is not None else None,
+            'check_in_distance_m': distance,
+        },
     )
+    if created and not on_site:
+        messages.warning(request, f"Check-in recorded at {now.strftime('%I:%M %p').lstrip('0')}, but you don't appear "
+                                  f"to be at the office ({reason}). HR will review it. If you are at the office, "
+                                  "connect to the office Wi-Fi and allow location access next time.")
+        return
     if created:
         LeaveRequest.objects.filter(
             employee=employee, date=today, status='pending'

@@ -59,6 +59,86 @@ class Leave(models.Model):
         return f"{self.employee.name} - {self.date}"
 
 
+class OfficeLocation(models.Model):
+    """
+    Where self check-in is accepted. One row, edited by HR on the "Check-in location" page.
+    A check-in passes when it comes from an office IP address or from within the radius
+    (or both, when require_both is on); otherwise it goes to Attendance Review.
+    """
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    radius_m = models.PositiveIntegerField(default=150, help_text='How far from the office a check-in may be, in metres.')
+    allowed_ips = models.TextField(blank=True, help_text="Office internet IP addresses, one per line.")
+    require_both = models.BooleanField(
+        default=False, help_text='Require office Wi-Fi AND location. Leave off unless the office has a static IP.')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Office check-in location'
+
+    def __str__(self):
+        return 'Office check-in location'
+
+    @classmethod
+    def current(cls):
+        return cls.objects.order_by('pk').first()
+
+    @property
+    def ip_list(self):
+        return [line.strip() for line in self.allowed_ips.replace(',', '\n').splitlines() if line.strip()]
+
+    @property
+    def has_gps(self):
+        return self.latitude is not None and self.longitude is not None
+
+    @property
+    def is_configured(self):
+        return self.has_gps or bool(self.ip_list)
+
+    def evaluate(self, ip, latitude=None, longitude=None, accuracy=None):
+        """Returns (ok, reason, distance_m)."""
+        on_wifi = bool(ip) and ip in self.ip_list
+        distance = None
+        in_radius = False
+        if self.has_gps and latitude is not None and longitude is not None:
+            distance = round(distance_m(float(self.latitude), float(self.longitude), latitude, longitude))
+            # Phones report how sure they are; allow for that, but never more than 100 m of slack.
+            in_radius = distance - min(accuracy or 0, 100) <= self.radius_m
+
+        checks = []
+        if self.ip_list:
+            checks.append(on_wifi)
+        if self.has_gps:
+            checks.append(in_radius)
+        ok = all(checks) if self.require_both else any(checks)
+
+        if ok:
+            return True, '', distance
+        reasons = []
+        if self.ip_list and not on_wifi:
+            reasons.append('not on office Wi-Fi')
+        if self.has_gps:
+            if distance is None:
+                reasons.append('location not shared')
+            elif not in_radius:
+                reasons.append(f'{format_distance(distance)} from the office')
+        return False, ', '.join(reasons), distance
+
+
+def distance_m(lat1, lng1, lat2, lng2):
+    """Great-circle distance in metres (haversine)."""
+    import math
+    r = 6371000
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dp, dl = math.radians(lat2 - lat1), math.radians(lng2 - lng1)
+    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 2 * r * math.asin(math.sqrt(a))
+
+
+def format_distance(metres):
+    return f'{metres / 1000:.1f} km' if metres >= 1000 else f'{metres} m'
+
+
 class DailyAttendance(models.Model):
     STATUS_CHOICES = [
         ('present', 'Present'),
@@ -76,6 +156,12 @@ class DailyAttendance(models.Model):
     note = models.CharField(max_length=100, blank=True)
     imported = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+    # Where a self check-in came from, kept for review.
+    check_in_ip = models.CharField(max_length=45, blank=True)
+    check_in_latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    check_in_longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    check_in_accuracy_m = models.PositiveIntegerField(null=True, blank=True)
+    check_in_distance_m = models.PositiveIntegerField(null=True, blank=True)
 
     class Meta:
         ordering = ['-date']

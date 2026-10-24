@@ -1,0 +1,65 @@
+{% extends 'core/base.html' %}
+{% block page_title %}Check-in Location{% endblock %}
+{% block content %}
+<p class="text-muted small">Employees can only check themselves in from the office. A check-in passes when it comes from the office internet connection <strong>or</strong> from within the distance below. Anything else is still recorded, but goes to <a href="{% url 'attendance_review' %}">Attendance Review</a> for HR to approve.</p>
+
+{% if not location.is_configured %}
+  <div class="alert alert-warning small"><i class="bi bi-exclamation-triangle-fill"></i> Not set up yet: right now check-ins are accepted from anywhere. Do steps 1 and 2 while you are <strong>at the office</strong>.</div>
+{% endif %}
+
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="card p-4 h-100">
+      <h6 class="fw-bold"><span class="badge bg-primary me-1">1</span> Office internet (Wi-Fi)</h6>
+      <p class="small mb-2">Your current internet address: <code class="user-select-all">{{ current_ip|default:"unknown" }}</code>
+        {% if current_ip_listed %}<span class="badge bg-success">on the list</span>{% endif %}</p>
+      {% if not current_ip_listed %}
+        <form method="post" class="mb-2">{% csrf_token %}<input type="hidden" name="action" value="add_my_ip">
+          <button class="btn btn-outline-primary btn-sm"><i class="bi bi-wifi"></i> This is the office internet, add it</button>
+        </form>
+      {% endif %}
+      <p class="small text-muted mb-0">Not sure if your office has a fixed IP? Open this page from the office on a few different days. If the address changes, your connection doesn't have a static IP: add each new one, or rely on location only.</p>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card p-4 h-100">
+      <h6 class="fw-bold"><span class="badge bg-primary me-1">2</span> Office location (GPS)</h6>
+      <p class="small mb-2">Stand inside the office with your phone and tap the button; it fills in the coordinates below. Then press <strong>Save</strong>.</p>
+      <button type="button" id="use-location" class="btn btn-outline-primary btn-sm mb-2"><i class="bi bi-crosshair"></i> Use my current location</button>
+      <div id="location-status" class="small text-muted"></div>
+      {% if location.has_gps %}<a class="small" target="_blank" rel="noopener" href="https://www.google.com/maps?q={{ location.latitude }},{{ location.longitude }}"><i class="bi bi-map"></i> Check the saved point on Google Maps</a>{% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="card p-4 mt-3" style="max-width:720px;">
+  <form method="post">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert alert-danger py-2 small">{{ form.non_field_errors|striptags }}</div>{% endif %}
+    <div class="row g-3">
+      <div class="col-sm-6"><label class="form-label small fw-semibold" for="id_latitude">Latitude</label>{{ form.latitude }}{% if form.latitude.errors %}<div class="text-danger small">{{ form.latitude.errors|striptags }}</div>{% endif %}</div>
+      <div class="col-sm-6"><label class="form-label small fw-semibold" for="id_longitude">Longitude</label>{{ form.longitude }}{% if form.longitude.errors %}<div class="text-danger small">{{ form.longitude.errors|striptags }}</div>{% endif %}</div>
+      <div class="col-sm-6"><label class="form-label small fw-semibold" for="id_radius_m">{{ form.radius_m.label }}</label>{{ form.radius_m }}<div class="form-text">150 m covers most office buildings; phones indoors are often 20–80 m off.</div>{% if form.radius_m.errors %}<div class="text-danger small">{{ form.radius_m.errors|striptags }}</div>{% endif %}</div>
+      <div class="col-sm-6"><label class="form-label small fw-semibold" for="id_allowed_ips">{{ form.allowed_ips.label }}</label>{{ form.allowed_ips }}{% if form.allowed_ips.errors %}<div class="text-danger small">{{ form.allowed_ips.errors|striptags }}</div>{% endif %}</div>
+      <div class="col-12"><div class="form-check">{{ form.require_both }}<label class="form-check-label small" for="id_require_both">{{ form.require_both.label }}</label><div class="form-text">Stricter: an employee must be on office Wi-Fi <em>and</em> inside the distance. Only turn this on if the office IP never changes.</div></div></div>
+    </div>
+    <button type="submit" class="btn btn-primary mt-3">Save</button>
+  </form>
+</div>
+{% endblock %}
+{% block extra_scripts %}
+<script>
+document.getElementById('use-location').addEventListener('click', function () {
+  const status = document.getElementById('location-status');
+  if (!navigator.geolocation) { status.textContent = 'This browser cannot share its location.'; return; }
+  status.textContent = 'Finding your location…';
+  navigator.geolocation.getCurrentPosition(function (pos) {
+    document.getElementById('id_latitude').value = pos.coords.latitude.toFixed(6);
+    document.getElementById('id_longitude').value = pos.coords.longitude.toFixed(6);
+    status.textContent = 'Filled in (accurate to about ' + Math.round(pos.coords.accuracy) + ' m). Press Save below.';
+  }, function (err) {
+    status.textContent = err.code === 1 ? 'Location permission was refused. Allow it in the browser and try again.' : 'Could not get your location. Try again near a window.';
+  }, {enableHighAccuracy: true, timeout: 15000, maximumAge: 0});
+});
+</script>
+{% endblock %}
